@@ -1,0 +1,3 @@
+DROP TABLE customers CASCADE;
+DROP TABLE couriers CASCADE;
+DROP TABLE orders CASCADE;
