@@ -66,7 +66,7 @@ func (s *serviceRepo) Delete(ctx context.Context, customerID uuid.UUID, log *log
 	return nil
 }
 
-func (s serviceRepo) GetByID(ctx context.Context, customerID uuid.UUID, log *log.Logger) (*models.Customer, error) {
+func (s serviceRepo) GetByID(customerID uuid.UUID, log *log.Logger) (*models.Customer, error) {
 	c := &models.Customer{}
 	row := s.postgresql.QueryRow(getCustomerById, customerID)
 	err := row.Scan( /*поля*/ )
@@ -74,8 +74,7 @@ func (s serviceRepo) GetByID(ctx context.Context, customerID uuid.UUID, log *log
 		log.Panic("customerService.GetByID.QueryRow")
 		return nil, err
 	}
-
-	return n, nil
+	return с, nil
 }
 
 func NewServiceRepo(postgresql *sql.DB, rabbit *rabbitmq.RabbitMQ, log *slog.Logger) customerService.Repository {
