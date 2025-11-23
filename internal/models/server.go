@@ -1,7 +1,6 @@
 package models
 
 type NewOrderData struct {
-	UserID  string   `json:"userId" validate:"required"`
-	Points  []string `json:"orderPoints" validate:"required"`
-	Comment string   `json:"comment"`
+	UserID string `db:"customer_id" json:"userId" validate:"required"`
+	Points int    `db:"amount" json:"amount" validate:"required"`
 }
