@@ -44,7 +44,7 @@ func main() {
 
 	errCh := make(chan error, 1)
 
-	srv := server.NewServer(&cfg, &db, rabbit, log)
+	srv := server.NewServer(&cfg, db, rabbit, log)
 	err = srv.Run(errCh)
 	if err != nil {
 		log.Error("failed to run server", slog.Any("error", err))

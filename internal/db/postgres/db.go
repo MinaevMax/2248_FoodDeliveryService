@@ -2,29 +2,43 @@ package postgres
 
 import (
 	"2248_FoodDeliveryService/internal/config"
-	"database/sql"
+	"context"
 	"fmt"
+	"time"
+
+	"github.com/jmoiron/sqlx"
 )
 
-func NewPostgresDB(cfg *config.PostgresqlConfig) (*sql.DB, error) {
-	psqlInfo := fmt.Sprintf("host=%s port=%d user=%s dbname=%s",
+const (
+	driverName = "postgres"
+)
+
+
+func NewPostgresDB(cfg *config.PostgresqlConfig) (*sqlx.DB, error) {
+	dsn := fmt.Sprintf("%s:%s@tcp(%s:%d)/%s?parseTime=true",
+		cfg.User,
+		cfg.Password,
 		cfg.Host,
 		cfg.Port,
-		cfg.User,
-		cfg.Dbname)
+		cfg.Dbname,
+	)
 
-	db, err := sql.Open("postgres", psqlInfo)
+	db, err := sqlx.Connect(driverName, dsn)
 	if err != nil {
 		return nil, err
 	}
-	defer db.Close()
 
 	db.SetMaxOpenConns(cfg.MaxOpenConns)
 	db.SetMaxIdleConns(cfg.MaxIdleConns)
 	db.SetConnMaxLifetime(cfg.ConnMaxLifetime)
 	db.SetConnMaxIdleTime(cfg.ConnMaxIdleTime)
-	if err = db.Ping(); err != nil {
-		return nil, err
+
+	ctx, cancel := context.WithTimeout(context.Background(), 5*time.Second)
+	defer cancel()
+
+	err = db.PingContext(ctx)
+	if err != nil {
+		return nil, fmt.Errorf("failed to ping database: %w", err)
 	}
 
 	return db, nil

@@ -37,7 +37,6 @@ CREATE TABLE orders
     id           UUID PRIMARY KEY                  DEFAULT gen_random_uuid(), --id заказа
     customer_id  UUID REFERENCES customers (id),                              --id пользователя
     courier_id   UUID REFERENCES couriers (id),                               --id курьера
-    amount       DECIMAL(10, 2)           NOT NULL DEFAULT 1000*random(),     --сумма заказа
     status       VARCHAR(20)                       DEFAULT 'UNDEFINED',       --статус заказа UNDEFINED/PACKING/ARRIVING/COMPLETED/CANCELED
     created_at   TIMESTAMP WITH TIME ZONE NOT NULL DEFAULT CURRENT_TIMESTAMP, --Таймстемп создания заказа
     completed_at TIMESTAMP WITH TIME ZONE,--Таймстемп успешного завершения заказа

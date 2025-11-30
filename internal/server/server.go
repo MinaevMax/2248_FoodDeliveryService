@@ -5,8 +5,8 @@ import (
 	serviceHttp "2248_FoodDeliveryService/internal/foodService/delivery/http"
 	serviceRepository "2248_FoodDeliveryService/internal/foodService/repository"
 	serviceUsecase "2248_FoodDeliveryService/internal/foodService/usecase"
-	"2248_FoodDeliveryService/internal/rabbitmq"
 	"2248_FoodDeliveryService/internal/middleware"
+	"2248_FoodDeliveryService/internal/rabbitmq"
 	"context"
 	"fmt"
 	"log/slog"
@@ -14,22 +14,23 @@ import (
 	"time"
 
 	"github.com/gorilla/mux"
+	"github.com/jmoiron/sqlx"
 )
 
 type Server struct {
-	cfg       *config.Config
-	db        *interface{}
-	rabbit    *rabbitmq.RabbitMQ
-	log       *slog.Logger
-	srv       *http.Server
+	cfg    *config.Config
+	db     *sqlx.DB
+	rabbit *rabbitmq.RabbitMQ
+	log    *slog.Logger
+	srv    *http.Server
 }
 
-func NewServer(cfg *config.Config, db *interface{}, rabbit *rabbitmq.RabbitMQ, log *slog.Logger) *Server {
+func NewServer(cfg *config.Config, db *sqlx.DB, rabbit *rabbitmq.RabbitMQ, log *slog.Logger) *Server {
 	return &Server{
-		cfg:       cfg,
-		db:        db,
-		rabbit:    rabbit,
-		log:       log,
+		cfg:    cfg,
+		db:     db,
+		rabbit: rabbit,
+		log:    log,
 	}
 }
 

@@ -4,11 +4,13 @@ import (
 	foodservice "2248_FoodDeliveryService/internal/foodService"
 	"2248_FoodDeliveryService/internal/models"
 	"2248_FoodDeliveryService/internal/utils"
+	"context"
 	"encoding/json"
 	"errors"
 	"io"
 	"log/slog"
 	"net/http"
+	"time"
 
 	"github.com/go-playground/validator/v10"
 )
@@ -20,6 +22,8 @@ type handler struct {
 
 var validate = validator.New()
 
+const CtxTimeout = 5 * time.Second
+
 func NewHandler(uc foodservice.UseCase, log *slog.Logger) foodservice.Handler {
 	return &handler{
 		log: log,
@@ -27,17 +31,11 @@ func NewHandler(uc foodservice.UseCase, log *slog.Logger) foodservice.Handler {
 	}
 }
 
-func (h *handler) GetOrdersList() http.HandlerFunc {
-	return func(w http.ResponseWriter, r *http.Request) {
-		h.log.Info("Received orders list request")
-
-		// TODO тут должна быть обработка доступов/прав пользоваетеля
-	}
-}
-
 func (h *handler) AddNewOrder() http.HandlerFunc {
 	return func(w http.ResponseWriter, r *http.Request) {
 		h.log.Info("Received new order request")
+
+		userID := "testUser123456"
 
 		// Читаем тело запроса
 		body, err := io.ReadAll(r.Body)
@@ -58,6 +56,7 @@ func (h *handler) AddNewOrder() http.HandlerFunc {
 			utils.WriteJSONError(w, http.StatusBadRequest, "Invalid JSON", h.log)
 			return
 		}
+		newOrderParams.UserID = userID
 
 		// Валидируем структуру параметров заказа
 		var validationError validator.ValidationErrors
@@ -74,6 +73,32 @@ func (h *handler) AddNewOrder() http.HandlerFunc {
 			return
 		}
 
-		// TODO тут должна быть работа по созданию заказа
+		newOrderCtx, newOrderCancel := context.WithTimeout(context.Background(), CtxTimeout)
+		defer newOrderCancel()
+		orderID, err := h.uc.CreateOrder(newOrderCtx, &newOrderParams)
+		if err != nil {
+			utils.WriteJSONError(w, http.StatusInternalServerError, "Failed to create order", h.log)
+			return
+		}
+
+		utils.WriteJSONResponse(w, http.StatusOK, orderID, h.log)
+	}
+}
+
+func (h *handler) GetOrdersList() http.HandlerFunc {
+	return func(w http.ResponseWriter, r *http.Request) {
+		h.log.Info("Received get orders list request")
+
+		userID := "testUser123456"
+
+		getOrdersCtx, getOrdersCancel := context.WithTimeout(context.Background(), CtxTimeout)
+		defer getOrdersCancel()
+		orders, err := h.uc.GetOrders(getOrdersCtx, userID)
+		if err != nil {
+			utils.WriteJSONError(w, http.StatusInternalServerError, "Failed to get orders", h.log)
+			return
+		}
+
+		utils.WriteJSONResponse(w, http.StatusOK, map[string]interface{}{"count": len(orders), "items": orders}, h.log)
 	}
 }
