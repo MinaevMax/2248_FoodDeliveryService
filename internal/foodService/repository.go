@@ -16,4 +16,7 @@ type Repository interface {
 	UpdateCustomer(ctx context.Context, customer *models.Customer) (*models.Customer, error)
 	DeleteCustomer(ctx context.Context, customerID uuid.UUID) error
 	GetCustomerByID(ctx context.Context, customerID uuid.UUID) (*models.Customer, error)
+
+	PublishNewOrder(order *models.NewOrderData) error
+	StartStatusChangeConsumer(queueName string)
 }

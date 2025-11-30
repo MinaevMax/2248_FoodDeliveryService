@@ -5,6 +5,7 @@ import "time"
 type ChangeOrderStatusData struct {
 	OrderID   string `db:"order_id" json:"orderID" validate:"required"`
 	NewStatus string `db:"status" json:"status" validate:"required,oneof=UNDEFINED PACKING ARRIVING COMPLETED CANCELED"`
+	UpdatedAt time.Time  `db:"updated_at" json:"-"`
 }
 
 type OrderInfo struct {
@@ -12,3 +13,6 @@ type OrderInfo struct {
 	Status    string    `db:"status" json:"status"`
 	UpdatedAt time.Time `db:"updated_at" json:"updatedAt"`
 }
+
+// (Максим) Я особо не вникал в структуру, просто вписал, чтобы не жаловался код
+type Customer struct{}

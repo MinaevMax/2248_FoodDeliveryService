@@ -37,6 +37,7 @@ func NewServer(cfg *config.Config, db *sqlx.DB, rabbit *rabbitmq.RabbitMQ, log *
 func (s *Server) Run(errCh chan error) error {
 	// Init repositories
 	serviceRepo := serviceRepository.NewServiceRepo(s.db, s.rabbit, s.log)
+	serviceRepo.StartStatusChangeConsumer("order-status-change")
 
 	// Init useCases
 	serviceUC := serviceUsecase.NewServiceUC(serviceRepo, s.log)

@@ -4,8 +4,8 @@ const (
 	/* createCustomerQuery = `INSERT INTO customers (first_name, last_name, email, phone_number, password_hash, sex, birthday)
 	VALUES (:first_name, :last_name, :email, :phone_number, :password_hash, :sex, :birthday)` */
 
-	createOrderQuery = `INSERT INTO orders (customer_id, courier_id)
-		VALUES (:customer_id, :courier_id) RETURNING id`
+	createOrderQuery = `INSERT INTO orders (customer_id, courier_id, updated_at)
+		VALUES (:customer_id, :courier_id, :updated_at) RETURNING id`
 	
 	getOrdersQuery = `SELECT id, status, updated_at FROM orders WHERE customer_id = $1 ORDER BY created_at DESC`
 

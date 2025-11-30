@@ -20,7 +20,15 @@ func NewServiceUC(serviceRepo foodservice.Repository, log *slog.Logger) foodserv
 }
 
 func (uc *serviceUC) CreateOrder(ctx context.Context, orderData *models.NewOrderData) (int64, error) {
-	return uc.serviceRepo.CreateOrder(ctx, orderData)
+	orderId, err := uc.serviceRepo.CreateOrder(ctx, orderData)
+	if err != nil {
+		return 0, err
+	}
+	err = uc.serviceRepo.PublishNewOrder(orderData)
+	if err != nil {
+		return 0, err
+	}
+	return orderId, nil
 }
 
 func (uc *serviceUC) GetOrders(ctx context.Context, userID string) ([]*models.OrderInfo, error) {

@@ -39,9 +39,7 @@ type RabbitMQConfig struct {
 	Password string
 	Host     string
 	Port     int
-	Vhost    string
-
-	Queues []string
+	Vhost    string	
 }
 
 // Загрузка общего конфига
@@ -168,11 +166,6 @@ func LoadRabbitConfig() (RabbitMQConfig, error) {
 	}
 
 	cfg.Vhost, err = getEnv("RABBIT_VHOST")
-	if err != nil {
-		return RabbitMQConfig{}, err
-	}
-
-	cfg.Queues, err = getEnvSlice("RABBIT_QUEUES")
 	if err != nil {
 		return RabbitMQConfig{}, err
 	}

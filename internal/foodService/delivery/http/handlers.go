@@ -35,7 +35,7 @@ func (h *handler) AddNewOrder() http.HandlerFunc {
 	return func(w http.ResponseWriter, r *http.Request) {
 		h.log.Info("Received new order request")
 
-		userID := "testUser123456"
+		userID := "testUser123456" // TODO заменить за userId из миддлеваре
 
 		// Читаем тело запроса
 		body, err := io.ReadAll(r.Body)
@@ -89,7 +89,7 @@ func (h *handler) GetOrdersList() http.HandlerFunc {
 	return func(w http.ResponseWriter, r *http.Request) {
 		h.log.Info("Received get orders list request")
 
-		userID := "testUser123456"
+		userID := "testUser123456" // TODO заменить за userId из миддлеваре
 
 		getOrdersCtx, getOrdersCancel := context.WithTimeout(context.Background(), CtxTimeout)
 		defer getOrdersCancel()

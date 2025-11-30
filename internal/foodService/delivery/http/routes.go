@@ -8,5 +8,6 @@ import (
 )
 
 func MapUserRoutes(m *mux.Router, h foodservice.Handler) {
+	m.HandleFunc("/orders/create", h.AddNewOrder()).Methods(http.MethodPost)
 	m.HandleFunc("/orders/list", h.GetOrdersList()).Methods(http.MethodGet)
 }
