@@ -59,9 +59,34 @@ services:
       - ./rabbitmq/init.sh:/docker-entrypoint-initdb.d/init.sh  # автозапуск
     restart: unless-stopped
 
+  prometheus:
+    image: prom/prometheus:latest
+    container_name: prometheus
+    volumes:
+      - ./prometheus.yml:/etc/prometheus/prometheus.yml
+    ports:
+      - "9090:9090"
+    restart: unless-stopped
+    networks:
+      - app-network
+
+  grafana:
+    image: grafana/grafana:latest
+    container_name: grafana
+    ports:
+      - "3000:3000"
+    volumes:
+      - grafana_data:/var/lib/grafana
+    depends_on:
+      - prometheus
+    restart: unless-stopped
+    networks:
+      - app-network
+
 volumes:
   postgres_data:
   rabbitmq_data:
+  grafana_data:
 
 networks:
   app-network:
