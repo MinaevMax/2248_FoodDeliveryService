@@ -1,0 +1,67 @@
+version: "3.9"
+
+services:
+  app:
+    build: .
+    container_name: foodservice
+    depends_on:
+      - db
+      - rabbitmq
+    environment:
+      # Server
+      - SERVER_PORT=8080
+      - SERVER_READ_TIMEOUT=10s
+      - SERVER_WRITE_TIMEOUT=10s
+      # Postgres
+      - POSTGRES_HOST=postgres
+      - POSTGRES_PORT=5432
+      - POSTGRES_DBNAME=foodservice_db
+      - POSTGRES_USER=admin
+      - POSTGRES_PASSWORD=adminpass
+      - POSTGRES_MAX_OPEN_CONNS=20
+      - POSTGRES_MAX_IDLE_CONNS=10
+      - POSTGRES_MAX_LIFETIME=5m
+      - POSTGRES_MAX_IDLE_TIME=1m
+      # RabbitMQ
+      - RABBIT_HOST=
+      - RABBIT_PORT=5672
+      - RABBIT_USER=guest
+      - RABBIT_PASSWORD=guest
+      - RABBIT_VHOST=foodservice
+    restart: unless-stopped
+    networks:
+      - app-network
+
+  db:
+    image: postgres:16-alpine
+    container_name: postgres-db
+    environment:
+      POSTGRES_DB: foodservice_db
+      POSTGRES_USER: admin
+      POSTGRES_PASSWORD: adminpass
+    ports:
+      - "5432:5432"
+    volumes:
+      - postgres_data:/var/lib/postgresql/data
+    restart: unless-stopped
+
+  rabbitmq:
+    image: rabbitmq:3.13-management
+    container_name: foodservice_rabbitmq
+    environment:
+      RABBITMQ_DEFAULT_USER: admin
+      RABBITMQ_DEFAULT_PASS: admin
+    ports:
+      - "5672:5672"
+      - "15672:15672"
+    volumes:
+      - rabbitmq_data:/var/lib/rabbitmq
+    restart: unless-stopped
+
+volumes:
+  postgres_data:
+  rabbitmq_data:
+
+networks:
+  app-network:
+    driver: bridge

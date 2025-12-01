@@ -93,47 +93,47 @@ func LoadPostgresqlConfig() (PostgresqlConfig, error) {
 	cfg := PostgresqlConfig{}
 	var err error
 
-	cfg.Host, err = getEnv("POSTGRESQL_HOST")
+	cfg.Host, err = getEnv("POSTGRES_HOST")
 	if err != nil {
 		return PostgresqlConfig{}, err
 	}
 
-	cfg.Port, err = getEnvInt("POSTGRESQL_PORT")
+	cfg.Port, err = getEnvInt("POSTGRES_PORT")
 	if err != nil {
 		return PostgresqlConfig{}, err
 	}
 
-	cfg.User, err = getEnv("POSTGRESQL_USER")
+	cfg.User, err = getEnv("POSTGRES_USER")
 	if err != nil {
 		return PostgresqlConfig{}, err
 	}
 
-	cfg.Password, err = getEnv("POSTGRESQL_PASSWORD")
+	cfg.Password, err = getEnv("POSTGRES_PASSWORD")
 	if err != nil {
 		return PostgresqlConfig{}, err
 	}
 
-	cfg.Dbname, err = getEnv("POSTGRESQL_DBNAME")
+	cfg.Dbname, err = getEnv("POSTGRES_DBNAME")
 	if err != nil {
 		return PostgresqlConfig{}, err
 	}
 
-	cfg.MaxOpenConns, err = getEnvInt("POSTGRESQL_MAX_OPEN_CONNS")
+	cfg.MaxOpenConns, err = getEnvInt("POSTGRES_MAX_OPEN_CONNS")
 	if err != nil {
 		return PostgresqlConfig{}, err
 	}
 
-	cfg.MaxIdleConns, err = getEnvInt("POSTGRESQL_MAX_IDLE_CONNS")
+	cfg.MaxIdleConns, err = getEnvInt("POSTGRES_MAX_IDLE_CONNS")
 	if err != nil {
 		return PostgresqlConfig{}, err
 	}
 
-	cfg.ConnMaxLifetime, err = getEnvDuration("POSTGRESQL_MAX_LIFETIME")
+	cfg.ConnMaxLifetime, err = getEnvDuration("POSTGRES_MAX_LIFETIME")
 	if err != nil {
 		return PostgresqlConfig{}, err
 	}
 
-	cfg.ConnMaxIdleTime, err = getEnvDuration("POSTGRESQL_MAX_IDLE_TIME")
+	cfg.ConnMaxIdleTime, err = getEnvDuration("POSTGRES_MAX_IDLE_TIME")
 	if err != nil {
 		return PostgresqlConfig{}, err
 	}
