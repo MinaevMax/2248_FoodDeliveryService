@@ -1,5 +1,3 @@
-version: "3.9"
-
 services:
   app:
     build: .
@@ -23,7 +21,7 @@ services:
       - POSTGRES_MAX_LIFETIME=5m
       - POSTGRES_MAX_IDLE_TIME=1m
       # RabbitMQ
-      - RABBIT_HOST=
+      - RABBIT_HOST=localhost
       - RABBIT_PORT=5672
       - RABBIT_USER=guest
       - RABBIT_PASSWORD=guest
@@ -43,11 +41,13 @@ services:
       - "5432:5432"
     volumes:
       - postgres_data:/var/lib/postgresql/data
+      - ./db/init:/docker-entrypoint-initdb.d
     restart: unless-stopped
 
   rabbitmq:
     image: rabbitmq:3.13-management
     container_name: foodservice_rabbitmq
+    hostname: rabbitmq 
     environment:
       RABBITMQ_DEFAULT_USER: admin
       RABBITMQ_DEFAULT_PASS: admin
@@ -56,6 +56,7 @@ services:
       - "15672:15672"
     volumes:
       - rabbitmq_data:/var/lib/rabbitmq
+      - ./rabbitmq/init.sh:/docker-entrypoint-initdb.d/init.sh  # автозапуск
     restart: unless-stopped
 
 volumes:

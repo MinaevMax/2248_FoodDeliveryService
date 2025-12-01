@@ -71,7 +71,7 @@ func NewRabbitMQ(cfg *config.RabbitMQConfig, ctx context.Context, log *slog.Logg
 		Channel:       ch,
 		Ctx:           rabbitCtx,
 		backoffPolicy: b,
-		PubConf: publisherCfg{"", "direct", true, false, false, false, nil, "new-orders"}, // важно, чтобы совпадали поля с аналогичными у консьюмера 
+		PubConf: publisherCfg{"main_exchange", "direct", true, false, false, false, nil, "new-orders"}, // важно, чтобы совпадали поля с аналогичными у консьюмера 
 	}, nil
 }
 
