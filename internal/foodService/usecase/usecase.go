@@ -31,6 +31,6 @@ func (uc *serviceUC) CreateOrder(ctx context.Context, orderData *models.NewOrder
 	return orderId, nil
 }
 
-func (uc *serviceUC) GetOrders(ctx context.Context, userID string) ([]*models.OrderInfo, error) {
-	return uc.serviceRepo.GetOrdersForUser(ctx, userID)
+func (uc *serviceUC) GetOrders(ctx context.Context, userID string, isActive bool) ([]*models.OrderInfo, error) {
+	return uc.serviceRepo.GetOrdersForUser(ctx, userID, isActive)
 }

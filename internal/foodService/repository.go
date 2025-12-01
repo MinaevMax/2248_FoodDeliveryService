@@ -10,7 +10,7 @@ import (
 type Repository interface {
 	CreateOrder(ctx context.Context, orderData *models.NewOrderData) (int64, error)
 	ChangeOrderStatus(ctx context.Context, newStatusData *models.ChangeOrderStatusData) (error)
-	GetOrdersForUser(ctx context.Context, userID string) ([]*models.OrderInfo, error)
+	GetOrdersForUser(ctx context.Context, userID string, isActive bool) ([]*models.OrderInfo, error)
 
 	CreateCustomer(ctx context.Context, customer *models.Customer) (*models.Customer, error)
 	UpdateCustomer(ctx context.Context, customer *models.Customer) (*models.Customer, error)

@@ -89,11 +89,26 @@ func (h *handler) GetOrdersList() http.HandlerFunc {
 	return func(w http.ResponseWriter, r *http.Request) {
 		h.log.Info("Received get orders list request")
 
+		active := r.URL.Query().Get("active")
+		isActive := false
+		if active != ""{
+			switch active {
+				case "true":
+					isActive = true
+				case "false":
+					isActive = false
+				default:
+					utils.WriteJSONError(w, http.StatusBadRequest, "Forbidden order status, should be true/false", h.log)
+					return
+			}
+		}
+		
+
 		userID := "testUser123456" // TODO заменить за userId из миддлеваре
 
 		getOrdersCtx, getOrdersCancel := context.WithTimeout(context.Background(), CtxTimeout)
 		defer getOrdersCancel()
-		orders, err := h.uc.GetOrders(getOrdersCtx, userID)
+		orders, err := h.uc.GetOrders(getOrdersCtx, userID, isActive)
 		if err != nil {
 			utils.WriteJSONError(w, http.StatusInternalServerError, "Failed to get orders", h.log)
 			return

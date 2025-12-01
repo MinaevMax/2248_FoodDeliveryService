@@ -66,10 +66,17 @@ func (s *serviceRepo) ChangeOrderStatus(ctx context.Context, newStatusData *mode
 	return nil
 }
 
-func (s *serviceRepo) GetOrdersForUser(ctx context.Context, userID string) ([]*models.OrderInfo, error) {
+func (s *serviceRepo) GetOrdersForUser(ctx context.Context, userID string, isActive bool) ([]*models.OrderInfo, error) {
+	var query string
+	if isActive {
+		query = getActiveOrdersQuery
+	} else {
+		query = getOrdersQuery
+	}
+	
 	rows, err := s.postgresql.QueryxContext(
 		ctx,
-		getOrdersQuery,
+		query,
 		userID,
 	)
 	if err != nil {
@@ -93,8 +100,6 @@ func (s *serviceRepo) GetOrdersForUser(ctx context.Context, userID string) ([]*m
 
 	return orders, nil
 }
-
-
 
 func (s *serviceRepo) CreateCustomer(ctx context.Context, customer *models.Customer) (*models.Customer, error) {
 	var o models.Customer

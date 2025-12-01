@@ -9,6 +9,8 @@ const (
 	
 	getOrdersQuery = `SELECT id, status, updated_at FROM orders WHERE customer_id = $1 ORDER BY created_at DESC`
 
+	getActiveOrdersQuery = `SELECT id, status, updated_at FROM orders WHERE customer_id = $1 AND (status = UNDEFINED OR status = PACKING OR status = ARRIVING) ORDER BY created_at DESC`
+
 	ChangeOrderStatusQuery = `UPDATE orders SET status :status WHERE id = :order_id`
 
 	createCustomerQuery = `INSERT INTO customers VALUES(DEFAULT) RETURNING *`
