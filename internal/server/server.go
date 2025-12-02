@@ -50,14 +50,10 @@ func (s *Server) Run(errCh chan error) error {
 
 	r := mux.NewRouter()
 
-	apiRouter := r.PathPrefix("/orders").Subrouter()
-
-	serviceHttp.MapUserRoutes(apiRouter, serviceHandler)
+	serviceHttp.MapUserRoutes(r, serviceHandler)
 
 	s.srv = &http.Server{
 		Addr:         fmt.Sprintf(":%d", s.cfg.Server.Port),
-		ReadTimeout:  s.cfg.Server.ReadTimeout,
-		WriteTimeout: s.cfg.Server.WriteTimeout,
 		Handler:      r,
 	}
 

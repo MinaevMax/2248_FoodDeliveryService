@@ -18,8 +18,6 @@ type Config struct {
 
 type ServerConfig struct {
 	Port         int
-	ReadTimeout  time.Duration
-	WriteTimeout time.Duration
 }
 
 type PostgresqlConfig struct {
@@ -28,10 +26,6 @@ type PostgresqlConfig struct {
 	User            string
 	Password        string
 	Dbname          string
-	MaxOpenConns    int
-	MaxIdleConns    int
-	ConnMaxLifetime time.Duration
-	ConnMaxIdleTime time.Duration
 }
 
 type RabbitMQConfig struct {
@@ -75,16 +69,6 @@ func LoadServerConfig() (ServerConfig, error) {
 		return ServerConfig{}, err
 	}
 
-	cfg.ReadTimeout, err = getEnvDuration("SERVER_READ_TIMEOUT")
-	if err != nil {
-		return ServerConfig{}, err
-	}
-
-	cfg.WriteTimeout, err = getEnvDuration("SERVER_WRITE_TIMEOUT")
-	if err != nil {
-		return ServerConfig{}, err
-	}
-
 	return cfg, nil
 }
 
@@ -114,26 +98,6 @@ func LoadPostgresqlConfig() (PostgresqlConfig, error) {
 	}
 
 	cfg.Dbname, err = getEnv("POSTGRES_DBNAME")
-	if err != nil {
-		return PostgresqlConfig{}, err
-	}
-
-	cfg.MaxOpenConns, err = getEnvInt("POSTGRES_MAX_OPEN_CONNS")
-	if err != nil {
-		return PostgresqlConfig{}, err
-	}
-
-	cfg.MaxIdleConns, err = getEnvInt("POSTGRES_MAX_IDLE_CONNS")
-	if err != nil {
-		return PostgresqlConfig{}, err
-	}
-
-	cfg.ConnMaxLifetime, err = getEnvDuration("POSTGRES_MAX_LIFETIME")
-	if err != nil {
-		return PostgresqlConfig{}, err
-	}
-
-	cfg.ConnMaxIdleTime, err = getEnvDuration("POSTGRES_MAX_IDLE_TIME")
 	if err != nil {
 		return PostgresqlConfig{}, err
 	}

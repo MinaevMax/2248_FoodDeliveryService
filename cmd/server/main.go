@@ -29,7 +29,7 @@ func main() {
 
 	db, err := postgres.NewPostgresDB(&cfg.Postgresql)
 	if err != nil {
-		log.Error("failed to create mysql connection", slog.Any("error", err))
+		log.Error("failed to create sql connection", slog.Any("error", err))
 		return
 	}
 

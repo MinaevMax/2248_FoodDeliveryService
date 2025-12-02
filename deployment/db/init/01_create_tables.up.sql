@@ -1,39 +1,21 @@
-DROP TABLE IF EXISTS users CASCADE;
-
-DROP TABLE IF EXISTS couriers CASCADE;
+CREATE EXTENSION IF NOT EXISTS pgcrypto;
 
 DROP TABLE IF EXISTS orders CASCADE;
+DROP TABLE IF EXISTS users CASCADE;
 
 CREATE TABLE users (
     id          UUID        PRIMARY KEY     DEFAULT gen_random_uuid (),             --id пользователя
     login       TEXT        NOT NULL,                                               --логин пользователя
     password    VARCHAR(64) NOT NULL,                                               --пароль(sha256)
     is_active   BOOLEAN                     DEFAULT TRUE,                           --Флаг активного пользователя
-    created_at TIMESTAMP    WITH    TIME ZONE NOT NULL DEFAULT CURRENT_TIMESTAMP,   --Таймстемп регистрации
-);
-
-CREATE TABLE couriers (
-    id UUID PRIMARY KEY DEFAULT gen_random_uuid (), --id пользователя
-    --     first_name    VARCHAR(32)              NOT NULL,                           --Имя
-    --     last_name     VARCHAR(32)              NOT NULL,                           --Фамилия
-    --     email         VARCHAR(64) UNIQUE       NOT NULL,                           --Email (уникальный)
-    --     phone_number  VARCHAR(20) UNIQUE       NOT NULL,                           --Номер телефона (с +, уникальный)
-    --     password_hash VARCHAR(64)              NOT NULL,                           --Пароль
-    --     sex           VARCHAR(1),                                                  --Пол - M/F/null
-    --     birthday      DATE,                                                        --Дата рождения
-    is_active BOOLEAN DEFAULT TRUE,                                                 --Флаг активного курьера
-    created_at TIMESTAMP WITH TIME ZONE NOT NULL DEFAULT CURRENT_TIMESTAMP,         --Таймстемп регистрации
-    updated_at TIMESTAMP WITH TIME ZONE                                             --Таймстемп последнего обновления информации
+    created_at TIMESTAMP    WITH    TIME ZONE NOT NULL DEFAULT CURRENT_TIMESTAMP   --Таймстемп регистрации
 );
 
 CREATE TABLE orders (
     id              UUID PRIMARY KEY    DEFAULT gen_random_uuid (),                 --id заказа
     user_id         UUID REFERENCES users (id),                                     --id пользователя
-    courier_id      UUID REFERENCES couriers (id),                                  --id курьера
     status          VARCHAR(20)         DEFAULT 'UNDEFINED',                        --статус заказа UNDEFINED/PACKING/ARRIVING/COMPLETED/CANCELED
     created_at      TIMESTAMP WITH TIME ZONE NOT NULL DEFAULT CURRENT_TIMESTAMP,    --Таймстемп создания заказа
     completed_at    TIMESTAMP WITH TIME ZONE,                                       --Таймстемп успешного завершения заказа
     updated_at      TIMESTAMP WITH TIME ZONE                                        --Таймстемп последнего обновления информации
 );
-
---индексы

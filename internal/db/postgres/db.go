@@ -7,6 +7,7 @@ import (
 	"time"
 
 	"github.com/jmoiron/sqlx"
+	_ "github.com/lib/pq"
 )
 
 const (
@@ -15,7 +16,7 @@ const (
 
 
 func NewPostgresDB(cfg *config.PostgresqlConfig) (*sqlx.DB, error) {
-	dsn := fmt.Sprintf("%s:%s@tcp(%s:%d)/%s?parseTime=true",
+	dsn := fmt.Sprintf("postgres://%s:%s@%s:%d/%s?sslmode=disable",
 		cfg.User,
 		cfg.Password,
 		cfg.Host,
@@ -23,15 +24,12 @@ func NewPostgresDB(cfg *config.PostgresqlConfig) (*sqlx.DB, error) {
 		cfg.Dbname,
 	)
 
+	print(dsn)
+
 	db, err := sqlx.Connect(driverName, dsn)
 	if err != nil {
 		return nil, err
 	}
-
-	db.SetMaxOpenConns(cfg.MaxOpenConns)
-	db.SetMaxIdleConns(cfg.MaxIdleConns)
-	db.SetConnMaxLifetime(cfg.ConnMaxLifetime)
-	db.SetConnMaxIdleTime(cfg.ConnMaxIdleTime)
 
 	ctx, cancel := context.WithTimeout(context.Background(), 5*time.Second)
 	defer cancel()

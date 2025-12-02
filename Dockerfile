@@ -18,5 +18,6 @@ WORKDIR /root/
 
 COPY --from=builder /build/foodservice /bin/foodservice
 
+RUN printenv > .env
 CMD ["/bin/foodservice"]
 

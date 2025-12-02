@@ -1,38 +1,41 @@
+version: "3.9"
+
 services:
   app:
     build: .
-    container_name: foodservice
+    container_name: app
     depends_on:
-      - db
-      - rabbitmq
+      db:
+        condition: service_healthy
+      rabbitmq:
+        condition: service_healthy
     environment:
-      # Server
-      - SERVER_PORT=8080
-      - SERVER_READ_TIMEOUT=10s
-      - SERVER_WRITE_TIMEOUT=10s
+      SERVER_PORT: 8080
+
       # Postgres
-      - POSTGRES_HOST=postgres
-      - POSTGRES_PORT=5432
-      - POSTGRES_DBNAME=foodservice_db
-      - POSTGRES_USER=admin
-      - POSTGRES_PASSWORD=adminpass
-      - POSTGRES_MAX_OPEN_CONNS=20
-      - POSTGRES_MAX_IDLE_CONNS=10
-      - POSTGRES_MAX_LIFETIME=5m
-      - POSTGRES_MAX_IDLE_TIME=1m
-      # RabbitMQ
-      - RABBIT_HOST=localhost
-      - RABBIT_PORT=5672
-      - RABBIT_USER=guest
-      - RABBIT_PASSWORD=guest
-      - RABBIT_VHOST=foodservice
+      POSTGRES_HOST: db
+      POSTGRES_PORT: 5432
+      POSTGRES_DBNAME: foodservice_db
+      POSTGRES_USER: admin
+      POSTGRES_PASSWORD: adminpass
+
+      # Rabbit
+      RABBIT_HOST: rabbitmq
+      RABBIT_PORT: 5672
+      RABBIT_USER: admin
+      RABBIT_PASSWORD: admin
+      RABBIT_VHOST: "foodservice"
+
+    ports:
+      - "8080:8080"
     restart: unless-stopped
     networks:
       - app-network
 
+
   db:
     image: postgres:16-alpine
-    container_name: postgres-db
+    container_name: postgres
     environment:
       POSTGRES_DB: foodservice_db
       POSTGRES_USER: admin
@@ -40,33 +43,57 @@ services:
     ports:
       - "5432:5432"
     volumes:
+      # Хранение данных
       - postgres_data:/var/lib/postgresql/data
-      - ./db/init:/docker-entrypoint-initdb.d
+      # Автоинициализация — запускается ТОЛЬКО если volume пустой
+      - ./deployment/db/init:/docker-entrypoint-initdb.d
+    healthcheck:
+      test: ["CMD-SHELL", "pg_isready -U admin -d foodservice_db"]
+      interval: 5s
+      timeout: 5s
+      retries: 10
+      start_period: 10s
     restart: unless-stopped
+    networks:
+      - app-network
+
 
   rabbitmq:
-    image: rabbitmq:3.13-management
-    container_name: foodservice_rabbitmq
-    hostname: rabbitmq 
+    image: rabbitmq:3.13-management-alpine
+    container_name: rabbitmq
     environment:
       RABBITMQ_DEFAULT_USER: admin
       RABBITMQ_DEFAULT_PASS: admin
+      RABBITMQ_DEFAULT_VHOST: "/"
+
+      # Ключевое! Автозагрузка конфигурации:
+      RABBITMQ_SERVER_ADDITIONAL_ERL_ARGS: "-rabbitmq_management load_definitions \"/etc/rabbitmq/definitions.json\""
+
     ports:
       - "5672:5672"
       - "15672:15672"
+
     volumes:
-      - rabbitmq_data:/var/lib/rabbitmq
-      - ./rabbitmq/init.sh:/docker-entrypoint-initdb.d/init.sh  # автозапуск
+      - ./deployment/rabbitmq/definitions.json:/etc/rabbitmq/definitions.json:ro
+
+    healthcheck:
+      test: ["CMD-SHELL", "rabbitmq-diagnostics ping"]
+      interval: 10s
+      timeout: 5s
+      retries: 10
+      start_period: 20s
+
     restart: unless-stopped
+    networks:
+      - app-network
 
   prometheus:
     image: prom/prometheus:latest
     container_name: prometheus
-    volumes:
-      - ./prometheus.yml:/etc/prometheus/prometheus.yml
     ports:
       - "9090:9090"
-    restart: unless-stopped
+    volumes:
+      - ./prometheus.yml:/etc/prometheus/prometheus.yml
     networks:
       - app-network
 
@@ -75,17 +102,17 @@ services:
     container_name: grafana
     ports:
       - "3000:3000"
+    environment:
+      - GF_SECURITY_ADMIN_PASSWORD=admin
     volumes:
       - grafana_data:/var/lib/grafana
     depends_on:
       - prometheus
-    restart: unless-stopped
     networks:
       - app-network
 
 volumes:
   postgres_data:
-  rabbitmq_data:
   grafana_data:
 
 networks:
