@@ -91,18 +91,17 @@ func (h *handler) GetOrdersList() http.HandlerFunc {
 
 		active := r.URL.Query().Get("active")
 		isActive := false
-		if active != ""{
+		if active != "" {
 			switch active {
-				case "true":
-					isActive = true
-				case "false":
-					isActive = false
-				default:
-					utils.WriteJSONError(w, http.StatusBadRequest, "Forbidden order status, should be true/false", h.log)
-					return
+			case "true":
+				isActive = true
+			case "false":
+				isActive = false
+			default:
+				utils.WriteJSONError(w, http.StatusBadRequest, "Forbidden order status, should be true/false", h.log)
+				return
 			}
 		}
-		
 
 		userID := "testUser123456" // TODO заменить за userId из миддлеваре
 
@@ -116,4 +115,40 @@ func (h *handler) GetOrdersList() http.HandlerFunc {
 
 		utils.WriteJSONResponse(w, http.StatusOK, map[string]interface{}{"count": len(orders), "items": orders}, h.log)
 	}
+}
+
+func (h *handler) RegisterUser(w http.ResponseWriter, r *http.Request) {
+	var userData models.UserData
+
+	// Декодируем JSON из тела запроса
+	err := json.NewDecoder(r.Body).Decode(&userData)
+	if err != nil {
+		h.log.Error("Failed to decode request body", slog.Any("error", err))
+		http.Error(w, "Invalid request", http.StatusBadRequest)
+		return
+	}
+
+	// Проверяем, существует ли уже пользователь
+	existingUser, err := h.uc.GetUserByLogin(r.Context(), userData.Login)
+	if err == nil && existingUser != nil {
+		http.Error(w, "User already exists", http.StatusConflict)
+		return
+	}
+
+	// Регистрируем нового пользователя
+	user, err := h.uc.RegisterUser(r.Context(), userData.Login, userData.Password)
+	if err != nil {
+		h.log.Error("Failed to register user", slog.Any("error", err))
+		http.Error(w, "Registration failed", http.StatusInternalServerError)
+		return
+	}
+
+	// Отправляем успешный ответ
+	response := map[string]interface{}{
+		"id":    user.ID,
+		"login": user.Login,
+	}
+	w.Header().Set("Content-Type", "application/json")
+	w.WriteHeader(http.StatusCreated)
+	json.NewEncoder(w).Encode(response)
 }

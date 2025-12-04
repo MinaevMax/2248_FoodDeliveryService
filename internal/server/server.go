@@ -46,17 +46,25 @@ func (s *Server) Run(errCh chan error) error {
 	serviceHandler := serviceHttp.NewHandler(serviceUC, s.log)
 
 	// Init middlewares
-	_ = middleware.NewMiddlewareManager(s.log)
+	middlewareManager := middleware.NewMiddlewareManager(s.log, serviceRepo)
 
+	// Настройка роутеров
 	r := mux.NewRouter()
 
+	// Применяем миддлвары через middlewareManager
 	serviceHttp.MapUserRoutes(r, serviceHandler)
 
+	// Применяем миддлвары для защиты маршрутов
+	r.Handle("/orders/create", middlewareManager.JWTMiddleware(middlewareManager.SessionMiddleware(http.HandlerFunc(serviceHandler.AddNewOrder()))))
+	r.Handle("/orders/list", middlewareManager.JWTMiddleware(middlewareManager.SessionMiddleware(http.HandlerFunc(serviceHandler.GetOrdersList()))))
+
+	// Создаем сервер
 	s.srv = &http.Server{
-		Addr:         fmt.Sprintf(":%d", s.cfg.Server.Port),
-		Handler:      r,
+		Addr:    fmt.Sprintf(":%d", s.cfg.Server.Port),
+		Handler: r,
 	}
 
+	// Запуск сервера в горутине
 	go func() {
 		s.log.Info("Starting server", slog.Int("port", s.cfg.Server.Port))
 		err := s.srv.ListenAndServe()

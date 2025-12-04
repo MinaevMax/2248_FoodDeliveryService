@@ -6,7 +6,7 @@ const (
 
 	createOrderQuery = `INSERT INTO orders (customer_id, courier_id, updated_at)
 		VALUES (:customer_id, :courier_id, :updated_at) RETURNING id`
-	
+
 	getOrdersQuery = `SELECT id, status, updated_at FROM orders WHERE customer_id = $1 ORDER BY created_at DESC`
 
 	getActiveOrdersQuery = `SELECT id, status, updated_at FROM orders WHERE customer_id = $1 AND (status = UNDEFINED OR status = PACKING OR status = ARRIVING) ORDER BY created_at DESC`
@@ -20,4 +20,6 @@ const (
 	deleteCustomerQuery = `DELETE FROM customers WHERE id = $1`
 
 	getCustomerByIdQuery = `SELECT * from customers WHERE id = $1`
+
+	deleteUserQuery = `DELETE FROM users WHERE id = $1`
 )

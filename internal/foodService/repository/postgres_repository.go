@@ -8,9 +8,11 @@ import (
 	"database/sql"
 	"fmt"
 	"log/slog"
+	"time"
 
 	"github.com/google/uuid"
 	"github.com/jmoiron/sqlx"
+	"golang.org/x/crypto/bcrypt"
 )
 
 type serviceRepo struct {
@@ -73,7 +75,7 @@ func (s *serviceRepo) GetOrdersForUser(ctx context.Context, userID string, isAct
 	} else {
 		query = getOrdersQuery
 	}
-	
+
 	rows, err := s.postgresql.QueryxContext(
 		ctx,
 		query,
@@ -149,7 +151,7 @@ func (s *serviceRepo) DeleteCustomer(ctx context.Context, customerID uuid.UUID) 
 	return nil
 }
 
-func (s serviceRepo) GetCustomerByID(ctx context.Context, customerID uuid.UUID) (*models.Customer, error) {
+func (s *serviceRepo) GetCustomerByID(ctx context.Context, customerID uuid.UUID) (*models.Customer, error) {
 	c := &models.Customer{}
 	row := s.postgresql.QueryRowContext(ctx, getCustomerByIdQuery, customerID)
 	err := row.Scan( /*поля*/ )
@@ -158,4 +160,62 @@ func (s serviceRepo) GetCustomerByID(ctx context.Context, customerID uuid.UUID) 
 		return nil, err
 	}
 	return c, nil
+}
+
+// Регистрация нового пользователя
+func (r *serviceRepo) RegisterUser(ctx context.Context, login, password string) (*models.UserData, error) {
+	// Хешируем пароль
+	hashedPassword, err := bcrypt.GenerateFromPassword([]byte(password), bcrypt.DefaultCost)
+	if err != nil {
+		return nil, fmt.Errorf("failed to hash password: %w", err)
+	}
+
+	// Добавляем пользователя в базу данных
+	query := `INSERT INTO users (login, password, created_at) VALUES ($1, $2, NOW()) RETURNING id`
+	var userID string
+	err = r.postgresql.GetContext(ctx, &userID, query, login, hashedPassword)
+	if err != nil {
+		return nil, fmt.Errorf("failed to insert user: %w", err)
+	}
+
+	user := &models.UserData{
+		ID:        userID,
+		Login:     login,
+		Password:  string(hashedPassword),
+		CreatedAt: time.Now(),
+	}
+
+	return user, nil
+}
+
+// Проверка, существует ли уже пользователь
+func (r *serviceRepo) GetUserByLogin(ctx context.Context, login string) (*models.UserData, error) {
+	user := &models.UserData{}
+	query := `SELECT id, login, password, created_at FROM users WHERE login = $1`
+	err := r.postgresql.GetContext(ctx, user, query, login)
+	if err != nil {
+		return nil, err
+	}
+	return user, nil
+}
+
+func (r *serviceRepo) DeleteUser(ctx context.Context, userID string) error {
+	// Выполняем запрос на удаление пользователя по ID
+	result, err := r.postgresql.ExecContext(ctx, deleteUserQuery, userID)
+	if err != nil {
+		r.log.Error("failed to delete user", slog.Any("error", err))
+		return err
+	}
+
+	// Проверяем, что пользователь был удален
+	rowsAffected, err := result.RowsAffected()
+	if err != nil {
+		r.log.Error("failed to get rows affected", slog.Any("error", err))
+		return err
+	}
+	if rowsAffected == 0 {
+		return fmt.Errorf("no user found with the provided ID")
+	}
+
+	return nil
 }
