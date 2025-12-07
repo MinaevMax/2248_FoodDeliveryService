@@ -5,10 +5,13 @@ import (
 	"2248_FoodDeliveryService/internal/models"
 	"2248_FoodDeliveryService/internal/rabbitmq"
 	"context"
+	"database/sql"
+	"errors"
 	"fmt"
 	"log/slog"
 	"time"
 
+	"github.com/google/uuid"
 	"github.com/jmoiron/sqlx"
 	"golang.org/x/crypto/bcrypt"
 )
@@ -23,24 +26,15 @@ func NewServiceRepo(postgresql *sqlx.DB, rabbit *rabbitmq.RabbitMQ, log *slog.Lo
 	return &serviceRepo{postgresql: postgresql, rabbit: rabbit, log: log}
 }
 
-func (s *serviceRepo) CreateOrder(ctx context.Context, userID string) (int64, error) {
-	result, err := s.postgresql.ExecContext(
-		ctx,
-		createOrderQuery,
-		userID,
-	)
+func (s *serviceRepo) CreateOrder(ctx context.Context, userID string) (uuid.UUID, error) {
+	var newOrderID uuid.UUID
+	err := s.postgresql.QueryRowContext(ctx, createOrderQuery, userID).Scan(&newOrderID)
 	if err != nil {
 		s.log.Error("failed to create order", slog.Any("error", err))
-		return 0, err
+		return uuid.UUID{}, err
 	}
 
-	id, err := result.LastInsertId()
-	if err != nil {
-		s.log.Error("failed to get new order id", slog.Any("error", err))
-		return 0, err
-	}
-
-	return id, nil
+	return newOrderID, nil
 }
 
 // ChangeOrderStatus обновляет статус заказа в БД
@@ -169,6 +163,9 @@ func (r *serviceRepo) GetUserByLogin(ctx context.Context, login string) (*models
 	query := `SELECT id, login, password, created_at FROM users WHERE login = $1`
 	err := r.postgresql.GetContext(ctx, user, query, login)
 	if err != nil {
+		if errors.Is(err, sql.ErrNoRows){
+			return nil, nil
+		}
 		return nil, err
 	}
 	return user, nil

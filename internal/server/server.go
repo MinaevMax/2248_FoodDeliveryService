@@ -15,6 +15,7 @@ import (
 
 	"github.com/gorilla/mux"
 	"github.com/jmoiron/sqlx"
+	"github.com/prometheus/client_golang/prometheus/promhttp"
 )
 
 type Server struct {
@@ -53,6 +54,8 @@ func (s *Server) Run(errCh chan error) error {
 	
 	r.Use(middlewareManager.MetricsMiddleware)
 
+	r.Handle("/metrics", promhttp.Handler())
+
 	// Применяем миддлвары для защиты маршрутов
 	ordersRouter := r.PathPrefix("/orders").Subrouter()
 	ordersRouter.Use(middlewareManager.JWTMiddleware)
@@ -64,6 +67,7 @@ func (s *Server) Run(errCh chan error) error {
 	authRouter := r.PathPrefix("/auth").Subrouter()
 	authRouter.HandleFunc("/register", serviceHandler.RegisterUser()).Methods(http.MethodPost)
 	authRouter.HandleFunc("/login", serviceHandler.LoginUser()).Methods(http.MethodPost)
+	
 
 	// Создаем сервер
 	s.srv = &http.Server{

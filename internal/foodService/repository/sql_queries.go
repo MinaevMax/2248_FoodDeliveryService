@@ -2,9 +2,6 @@ package repository
 
 const (
 	// Order queries
-	createOrderQuery = `INSERT INTO orders (user_id, updated_at)
-		VALUES (:user_id, :updated_at) RETURNING id`
-
 	createOrderQuery = `INSERT INTO orders (user_id) VALUES ($1) RETURNING id`
 	
 	getOrdersQuery = `SELECT id, status, updated_at FROM orders WHERE customer_id = $1 ORDER BY created_at DESC`

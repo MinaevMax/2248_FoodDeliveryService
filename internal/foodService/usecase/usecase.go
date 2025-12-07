@@ -6,6 +6,8 @@ import (
 	"context"
 	"fmt"
 	"log/slog"
+
+	"github.com/google/uuid"
 )
 
 type serviceUC struct {
@@ -21,18 +23,18 @@ func NewServiceUC(serviceRepo foodservice.Repository, log *slog.Logger) foodserv
 	}
 }
 
-func (uc *serviceUC) CreateOrder(ctx context.Context, userID string) (int64, error) {
+func (uc *serviceUC) CreateOrder(ctx context.Context, userID string) (uuid.UUID, error) {
 	orderId, err := uc.serviceRepo.CreateOrder(ctx, userID)
 	if err != nil {
 		// Логируем ошибку создания заказа
 		uc.log.Error("Failed to create order", slog.Any("error", err))
-		return 0, err
+		return uuid.UUID{}, err
 	}
 	err = uc.serviceRepo.PublishNewOrder(userID)
 	if err != nil {
 		// Логируем ошибку публикации
 		uc.log.Error("Failed to publish new order", slog.Any("error", err))
-		return 0, err
+		return uuid.UUID{}, err
 	}
 
 	// Возвращаем id заказа

@@ -81,7 +81,7 @@ func (h *handler) AddNewOrder() http.HandlerFunc {
 			return
 		}
 
-		orderIDs := []int64{}
+		orderIDs := []uuid.UUID{}
 		for range newOrderParams.Amount {
 			newOrderCtx, newOrderCancel := context.WithTimeout(context.Background(), CtxTimeout)
 			defer newOrderCancel()
