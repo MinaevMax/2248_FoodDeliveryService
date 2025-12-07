@@ -21,18 +21,14 @@ func NewServiceUC(serviceRepo foodservice.Repository, log *slog.Logger) foodserv
 	}
 }
 
-// Создание нового заказа
-func (uc *serviceUC) CreateOrder(ctx context.Context, orderData *models.NewOrderData) (int64, error) {
-	// Создаём заказ в базе данных
-	orderId, err := uc.serviceRepo.CreateOrder(ctx, orderData)
+func (uc *serviceUC) CreateOrder(ctx context.Context, userID string) (int64, error) {
+	orderId, err := uc.serviceRepo.CreateOrder(ctx, userID)
 	if err != nil {
 		// Логируем ошибку создания заказа
 		uc.log.Error("Failed to create order", slog.Any("error", err))
 		return 0, err
 	}
-
-	// Публикуем новый заказ в очередь (если необходимо)
-	err = uc.serviceRepo.PublishNewOrder(orderData)
+	err = uc.serviceRepo.PublishNewOrder(userID)
 	if err != nil {
 		// Логируем ошибку публикации
 		uc.log.Error("Failed to publish new order", slog.Any("error", err))

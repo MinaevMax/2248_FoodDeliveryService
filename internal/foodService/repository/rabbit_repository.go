@@ -10,14 +10,14 @@ import (
 	"github.com/streadway/amqp"
 )
 
-func (r *serviceRepo) PublishNewOrder(order *models.NewOrderData) error {
+func (r *serviceRepo) PublishNewOrder(userID string) error {
 	err := r.rabbit.Channel.ExchangeDeclare(r.rabbit.PubConf.Name, r.rabbit.PubConf.Kind, r.rabbit.PubConf.Durable, r.rabbit.PubConf.AutoDelete, r.rabbit.PubConf.Internal, r.rabbit.PubConf.NoWait, r.rabbit.PubConf.Args)
 	if err != nil {
 		r.log.Error("failed to declare an exchange", slog.Any("errors", err))
 		return err
 	}
 
-	body, err := json.Marshal(order)
+	body, err := json.Marshal(map[string]string{"userID": userID})
 	if err != nil {
 		r.log.Error("failed to marshall error message", slog.Any("error", err))
 		return err

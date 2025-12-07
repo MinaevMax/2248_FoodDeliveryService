@@ -6,14 +6,19 @@ import (
 )
 
 type Repository interface {
-	CreateOrder(ctx context.Context, orderData *models.NewOrderData) (int64, error)
+	CreateOrder(ctx context.Context, userID string) (int64, error)
 	ChangeOrderStatus(ctx context.Context, newStatusData *models.ChangeOrderStatusData) error
 	GetOrdersForUser(ctx context.Context, userID string, isActive bool) ([]*models.OrderInfo, error)
 
-	PublishNewOrder(order *models.NewOrderData) error
-	StartStatusChangeConsumer(queueName string)
+	CreateCustomer(ctx context.Context, customer *models.Customer) (*models.Customer, error)
+	UpdateCustomer(ctx context.Context, customer *models.Customer) (*models.Customer, error)
+	DeleteCustomer(ctx context.Context, customerID uuid.UUID) error
+	GetCustomerByID(ctx context.Context, customerID uuid.UUID) (*models.Customer, error)
 
-	GetUserByLogin(ctx context.Context, login string) (*models.UserData, error)
+	PublishNewOrder(userID string) error
+	StartStatusChangeConsumer(queueName string)
+  
+  GetUserByLogin(ctx context.Context, login string) (*models.UserData, error)
 	RegisterUser(ctx context.Context, login, password string) (*models.UserData, error)
 	CreateUser(ctx context.Context, user *models.UserData) (*models.UserData, error)
 	UpdateUser(ctx context.Context, user *models.UserData) (*models.UserData, error)

@@ -50,6 +50,8 @@ func (s *Server) Run(errCh chan error) error {
 
 	// Настройка роутеров
 	r := mux.NewRouter()
+	
+	r.Use(middlewareManager.MetricsMiddleware)
 
 	// Применяем миддлвары для защиты маршрутов
 	ordersRouter := r.PathPrefix("/orders").Subrouter()
