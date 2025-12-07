@@ -46,9 +46,11 @@ func (s *Server) Run(errCh chan error) error {
 	serviceHandler := serviceHttp.NewHandler(serviceUC, s.log)
 
 	// Init middlewares
-	_ = middleware.NewMiddlewareManager(s.log)
+	mw := middleware.NewMiddlewareManager(s.log)
 
 	r := mux.NewRouter()
+	
+	r.Use(mw.MetricsMiddleware)
 
 	serviceHttp.MapUserRoutes(r, serviceHandler)
 

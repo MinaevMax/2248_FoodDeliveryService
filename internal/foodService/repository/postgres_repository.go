@@ -23,11 +23,11 @@ func NewServiceRepo(postgresql *sqlx.DB, rabbit *rabbitmq.RabbitMQ, log *slog.Lo
 	return &serviceRepo{postgresql: postgresql, rabbit: rabbit, log: log}
 }
 
-func (s *serviceRepo) CreateOrder(ctx context.Context, orderData *models.NewOrderData) (int64, error) {
-	result, err := s.postgresql.NamedExecContext(
+func (s *serviceRepo) CreateOrder(ctx context.Context, userID string) (int64, error) {
+	result, err := s.postgresql.ExecContext(
 		ctx,
 		createOrderQuery,
-		orderData,
+		userID,
 	)
 	if err != nil {
 		s.log.Error("failed to create order", slog.Any("error", err))

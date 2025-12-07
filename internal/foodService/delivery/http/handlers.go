@@ -73,15 +73,19 @@ func (h *handler) AddNewOrder() http.HandlerFunc {
 			return
 		}
 
-		newOrderCtx, newOrderCancel := context.WithTimeout(context.Background(), CtxTimeout)
-		defer newOrderCancel()
-		orderID, err := h.uc.CreateOrder(newOrderCtx, &newOrderParams)
-		if err != nil {
-			utils.WriteJSONError(w, http.StatusInternalServerError, "Failed to create order", h.log)
-			return
+		orderIDs := []int64{}
+		for range newOrderParams.Amount {
+			newOrderCtx, newOrderCancel := context.WithTimeout(context.Background(), CtxTimeout)
+			defer newOrderCancel()
+			orderID, err := h.uc.CreateOrder(newOrderCtx, newOrderParams.UserID)
+			if err != nil {
+				utils.WriteJSONError(w, http.StatusInternalServerError, "Failed to create order", h.log)
+				return
+			}
+			orderIDs = append(orderIDs, orderID)
 		}
 
-		utils.WriteJSONResponse(w, http.StatusOK, orderID, h.log)
+		utils.WriteJSONResponse(w, http.StatusOK, orderIDs, h.log)
 	}
 }
 

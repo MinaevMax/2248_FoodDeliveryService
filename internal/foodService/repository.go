@@ -8,8 +8,8 @@ import (
 )
 
 type Repository interface {
-	CreateOrder(ctx context.Context, orderData *models.NewOrderData) (int64, error)
-	ChangeOrderStatus(ctx context.Context, newStatusData *models.ChangeOrderStatusData) (error)
+	CreateOrder(ctx context.Context, userID string) (int64, error)
+	ChangeOrderStatus(ctx context.Context, newStatusData *models.ChangeOrderStatusData) error
 	GetOrdersForUser(ctx context.Context, userID string, isActive bool) ([]*models.OrderInfo, error)
 
 	CreateCustomer(ctx context.Context, customer *models.Customer) (*models.Customer, error)
@@ -17,6 +17,6 @@ type Repository interface {
 	DeleteCustomer(ctx context.Context, customerID uuid.UUID) error
 	GetCustomerByID(ctx context.Context, customerID uuid.UUID) (*models.Customer, error)
 
-	PublishNewOrder(order *models.NewOrderData) error
+	PublishNewOrder(userID string) error
 	StartStatusChangeConsumer(queueName string)
 }
