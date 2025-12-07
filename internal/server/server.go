@@ -51,12 +51,17 @@ func (s *Server) Run(errCh chan error) error {
 	// Настройка роутеров
 	r := mux.NewRouter()
 
-	// Применяем миддлвары через middlewareManager
-	serviceHttp.MapUserRoutes(r, serviceHandler)
-
 	// Применяем миддлвары для защиты маршрутов
-	r.Handle("/orders/create", middlewareManager.JWTMiddleware(middlewareManager.SessionMiddleware(http.HandlerFunc(serviceHandler.AddNewOrder()))))
-	r.Handle("/orders/list", middlewareManager.JWTMiddleware(middlewareManager.SessionMiddleware(http.HandlerFunc(serviceHandler.GetOrdersList()))))
+	ordersRouter := r.PathPrefix("/orders").Subrouter()
+	ordersRouter.Use(middlewareManager.JWTMiddleware)
+	ordersRouter.Use(middlewareManager.SessionMiddleware)
+	ordersRouter.HandleFunc("/create", serviceHandler.AddNewOrder()).Methods(http.MethodPost)
+	ordersRouter.HandleFunc("/list", serviceHandler.GetOrdersList()).Methods(http.MethodGet)
+
+	// Публичные маршруты
+	authRouter := r.PathPrefix("/auth").Subrouter()
+	authRouter.HandleFunc("/register", serviceHandler.RegisterUser()).Methods(http.MethodPost)
+	authRouter.HandleFunc("/login", serviceHandler.LoginUser()).Methods(http.MethodPost)
 
 	// Создаем сервер
 	s.srv = &http.Server{

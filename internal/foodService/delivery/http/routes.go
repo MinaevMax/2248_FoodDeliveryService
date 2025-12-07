@@ -7,7 +7,12 @@ import (
 	"github.com/gorilla/mux"
 )
 
+// MapUserRoutes регистрирует все маршруты:
+// Публичные: POST /auth/register, POST /auth/login
+// Защищённые: POST /orders/create, GET /orders/list
 func MapUserRoutes(m *mux.Router, h foodservice.Handler) {
+	m.HandleFunc("/auth/register", h.RegisterUser()).Methods(http.MethodPost)
+	m.HandleFunc("/auth/login", h.LoginUser()).Methods(http.MethodPost)
 	m.HandleFunc("/orders/create", h.AddNewOrder()).Methods(http.MethodPost)
 	m.HandleFunc("/orders/list", h.GetOrdersList()).Methods(http.MethodGet)
 }

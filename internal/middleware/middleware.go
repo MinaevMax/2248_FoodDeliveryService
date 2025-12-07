@@ -22,6 +22,7 @@ func NewMiddlewareManager(log *slog.Logger, serviceRepo foodservice.Repository) 
 	}
 }
 
+// JWTMiddleware проверяет JWT токен в Authorization header и добавляет userID в контекст
 func (m *MiddlewareManager) JWTMiddleware(next http.Handler) http.Handler {
 	return http.HandlerFunc(func(w http.ResponseWriter, r *http.Request) {
 		authHeader := r.Header.Get("Authorization")
@@ -56,7 +57,7 @@ func (m *MiddlewareManager) JWTMiddleware(next http.Handler) http.Handler {
 
 var sessionTimeout = 15 * time.Minute
 
-// SessionMiddleware проверяет сессию и обновляет её при необходимости
+// SessionMiddleware проверяет сессию в БД и продлевает её TTL на 24 часа
 func (m *MiddlewareManager) SessionMiddleware(next http.Handler) http.Handler {
 	return http.HandlerFunc(func(w http.ResponseWriter, r *http.Request) {
 		userID, ok := r.Context().Value("userID").(string)
@@ -66,7 +67,6 @@ func (m *MiddlewareManager) SessionMiddleware(next http.Handler) http.Handler {
 			return
 		}
 
-		// здесь должны быть методы репозитория:
 		session, err := m.repo.GetSessionByUserID(r.Context(), userID)
 		if err != nil {
 			m.log.Error("Failed to get session from repository",

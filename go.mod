@@ -11,7 +11,10 @@ require (
 	github.com/streadway/amqp v1.1.0
 )
 
-require github.com/dgrijalva/jwt-go v3.2.0+incompatible // indirect
+require (
+	github.com/brianvoe/gofakeit/v6 v6.28.0 // indirect
+	github.com/dgrijalva/jwt-go v3.2.0+incompatible // indirect
+)
 
 require (
 	github.com/gabriel-vasile/mimetype v1.4.10 // indirect

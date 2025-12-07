@@ -2,6 +2,7 @@ package http
 
 import (
 	foodservice "2248_FoodDeliveryService/internal/foodService"
+	"2248_FoodDeliveryService/internal/jwt"
 	"2248_FoodDeliveryService/internal/models"
 	"2248_FoodDeliveryService/internal/utils"
 	"context"
@@ -13,6 +14,8 @@ import (
 	"time"
 
 	"github.com/go-playground/validator/v10"
+	"github.com/google/uuid"
+	"golang.org/x/crypto/bcrypt"
 )
 
 type handler struct {
@@ -31,11 +34,17 @@ func NewHandler(uc foodservice.UseCase, log *slog.Logger) foodservice.Handler {
 	}
 }
 
+// AddNewOrder обработчик создания нового заказа (защищённый маршрут)
 func (h *handler) AddNewOrder() http.HandlerFunc {
 	return func(w http.ResponseWriter, r *http.Request) {
 		h.log.Info("Received new order request")
 
-		userID := "testUser123456" // TODO заменить за userId из миддлеваре
+		userID, ok := r.Context().Value("userID").(string)
+		if !ok || userID == "" {
+			h.log.Error("User not authenticated, missing userID")
+			http.Error(w, "User not authenticated", http.StatusUnauthorized)
+			return
+		}
 
 		// Читаем тело запроса
 		body, err := io.ReadAll(r.Body)
@@ -58,7 +67,6 @@ func (h *handler) AddNewOrder() http.HandlerFunc {
 		}
 		newOrderParams.UserID = userID
 
-		// Валидируем структуру параметров заказа
 		var validationError validator.ValidationErrors
 		validationErr := validate.Struct(newOrderParams)
 		if validationErr != nil {
@@ -85,6 +93,7 @@ func (h *handler) AddNewOrder() http.HandlerFunc {
 	}
 }
 
+// GetOrdersList обработчик получения списка заказов пользователя (защищённый маршрут)
 func (h *handler) GetOrdersList() http.HandlerFunc {
 	return func(w http.ResponseWriter, r *http.Request) {
 		h.log.Info("Received get orders list request")
@@ -103,7 +112,12 @@ func (h *handler) GetOrdersList() http.HandlerFunc {
 			}
 		}
 
-		userID := "testUser123456" // TODO заменить за userId из миддлеваре
+		userID, ok := r.Context().Value("userID").(string)
+		if !ok || userID == "" {
+			h.log.Error("User not authenticated, missing userID")
+			http.Error(w, "User not authenticated", http.StatusUnauthorized)
+			return
+		}
 
 		getOrdersCtx, getOrdersCancel := context.WithTimeout(context.Background(), CtxTimeout)
 		defer getOrdersCancel()
@@ -117,38 +131,117 @@ func (h *handler) GetOrdersList() http.HandlerFunc {
 	}
 }
 
-func (h *handler) RegisterUser(w http.ResponseWriter, r *http.Request) {
-	var userData models.UserData
+// RegisterUser обработчик регистрации нового пользователя (публичный маршрут)
+func (h *handler) RegisterUser() http.HandlerFunc {
+	return func(w http.ResponseWriter, r *http.Request) {
+		h.log.Info("Received user registration request")
 
-	// Декодируем JSON из тела запроса
-	err := json.NewDecoder(r.Body).Decode(&userData)
-	if err != nil {
-		h.log.Error("Failed to decode request body", slog.Any("error", err))
-		http.Error(w, "Invalid request", http.StatusBadRequest)
-		return
-	}
+		ctx, cancel := context.WithTimeout(r.Context(), CtxTimeout)
+		defer cancel()
 
-	// Проверяем, существует ли уже пользователь
-	existingUser, err := h.uc.GetUserByLogin(r.Context(), userData.Login)
-	if err == nil && existingUser != nil {
-		http.Error(w, "User already exists", http.StatusConflict)
-		return
-	}
+		var req struct {
+			Login    string `json:"login" validate:"required,min=3"`
+			Password string `json:"password" validate:"required,min=8"`
+		}
 
-	// Регистрируем нового пользователя
-	user, err := h.uc.RegisterUser(r.Context(), userData.Login, userData.Password)
-	if err != nil {
-		h.log.Error("Failed to register user", slog.Any("error", err))
-		http.Error(w, "Registration failed", http.StatusInternalServerError)
-		return
-	}
+		body, err := io.ReadAll(r.Body)
+		if err != nil {
+			h.log.Error("failed to read request body", slog.Any("error", err))
+			http.Error(w, "failed to read request body", http.StatusBadRequest)
+			return
+		}
 
-	// Отправляем успешный ответ
-	response := map[string]interface{}{
-		"id":    user.ID,
-		"login": user.Login,
+		err = json.Unmarshal(body, &req)
+		if err != nil {
+			h.log.Error("failed to unmarshal request", slog.Any("error", err))
+			http.Error(w, "invalid request format", http.StatusBadRequest)
+			return
+		}
+
+		if err := validate.Struct(req); err != nil {
+			h.log.Error("validation error", slog.Any("error", err))
+			http.Error(w, "validation failed", http.StatusBadRequest)
+			return
+		}
+
+		user, err := h.uc.RegisterUser(ctx, req.Login, req.Password)
+		if err != nil {
+			h.log.Error("failed to register user", slog.Any("error", err))
+			http.Error(w, err.Error(), http.StatusConflict)
+			return
+		}
+
+		w.Header().Set("Content-Type", "application/json")
+		w.WriteHeader(http.StatusCreated)
+		json.NewEncoder(w).Encode(user)
 	}
-	w.Header().Set("Content-Type", "application/json")
-	w.WriteHeader(http.StatusCreated)
-	json.NewEncoder(w).Encode(response)
+}
+
+// LoginUser обработчик логина пользователя (публичный маршрут, возвращает JWT токен)
+func (h *handler) LoginUser() http.HandlerFunc {
+	return func(w http.ResponseWriter, r *http.Request) {
+		h.log.Info("Received login request")
+
+		ctx, cancel := context.WithTimeout(r.Context(), CtxTimeout)
+		defer cancel()
+
+		var req struct {
+			Login    string `json:"login" validate:"required"`
+			Password string `json:"password" validate:"required"`
+		}
+
+		err := json.NewDecoder(r.Body).Decode(&req)
+		if err != nil {
+			h.log.Error("failed to decode request body", slog.Any("error", err))
+			http.Error(w, "invalid request", http.StatusBadRequest)
+			return
+		}
+
+		if err := validate.Struct(req); err != nil {
+			h.log.Error("validation error", slog.Any("error", err))
+			http.Error(w, "validation failed", http.StatusBadRequest)
+			return
+		}
+
+		user, err := h.uc.GetUserByLogin(ctx, req.Login)
+		if err != nil || user == nil {
+			h.log.Warn("user not found", slog.String("login", req.Login))
+			http.Error(w, "invalid credentials", http.StatusUnauthorized)
+			return
+		}
+
+		if err := bcrypt.CompareHashAndPassword([]byte(user.Password), []byte(req.Password)); err != nil {
+			h.log.Warn("invalid password", slog.String("login", req.Login))
+			http.Error(w, "invalid credentials", http.StatusUnauthorized)
+			return
+		}
+
+		token, err := jwt.GenerateToken(user.ID, user.Email)
+		if err != nil {
+			h.log.Error("failed to generate token", slog.Any("error", err))
+			http.Error(w, "failed to generate token", http.StatusInternalServerError)
+			return
+		}
+
+		sessionID := uuid.New().String()
+		err = h.uc.CreateSession(ctx, sessionID, user.ID)
+		if err != nil {
+			h.log.Error("failed to create session", slog.Any("error", err))
+			http.Error(w, "failed to create session", http.StatusInternalServerError)
+			return
+		}
+
+		response := map[string]interface{}{
+			"token": token,
+			"user": map[string]interface{}{
+				"id":    user.ID,
+				"login": user.Login,
+				"email": user.Email,
+			},
+		}
+
+		w.Header().Set("Content-Type", "application/json")
+		w.WriteHeader(http.StatusOK)
+		json.NewEncoder(w).Encode(response)
+	}
 }

@@ -56,7 +56,7 @@ func (uc *serviceUC) GetOrders(ctx context.Context, userID string, isActive bool
 }
 
 // Получение пользователя по логину
-func (uc *serviceUC) GetUserByLogin(ctx context.Context, login string) (*models.User, error) {
+func (uc *serviceUC) GetUserByLogin(ctx context.Context, login string) (*models.UserData, error) {
 	user, err := uc.serviceRepo.GetUserByLogin(ctx, login)
 	if err != nil {
 		// Логируем ошибку при получении пользователя
@@ -67,10 +67,16 @@ func (uc *serviceUC) GetUserByLogin(ctx context.Context, login string) (*models.
 }
 
 // Регистрация нового пользователя
-func (uc *serviceUC) RegisterUser(ctx context.Context, login, password string) (*models.User, error) {
+func (uc *serviceUC) RegisterUser(ctx context.Context, login, password string) (*models.UserData, error) {
 	// Проверка на существование пользователя
 	existingUser, err := uc.serviceRepo.GetUserByLogin(ctx, login)
-	if err == nil && existingUser != nil {
+	if err != nil {
+		// Если произошла ошибка БД (не "пользователь не найден"), возвращаем ошибку
+		uc.log.Error("Failed to check existing user", slog.Any("login", login), slog.Any("error", err))
+		return nil, err
+	}
+
+	if existingUser != nil {
 		// Если пользователь уже существует, возвращаем ошибку
 		uc.log.Warn("User already exists", slog.Any("login", login))
 		return nil, fmt.Errorf("user already exists")
@@ -86,4 +92,14 @@ func (uc *serviceUC) RegisterUser(ctx context.Context, login, password string) (
 
 	// Возвращаем зарегистрированного пользователя
 	return user, nil
+}
+
+// Создание сессии для пользователя
+func (uc *serviceUC) CreateSession(ctx context.Context, sessionID, userID string) error {
+	err := uc.serviceRepo.CreateSession(ctx, sessionID, userID)
+	if err != nil {
+		uc.log.Error("Failed to create session", slog.String("userID", userID), slog.Any("error", err))
+		return err
+	}
+	return nil
 }
