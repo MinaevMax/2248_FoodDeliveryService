@@ -46,19 +46,32 @@ func (s *Server) Run(errCh chan error) error {
 	serviceHandler := serviceHttp.NewHandler(serviceUC, s.log)
 
 	// Init middlewares
-	mw := middleware.NewMiddlewareManager(s.log)
+	middlewareManager := middleware.NewMiddlewareManager(s.log, serviceRepo)
 
+	// Настройка роутеров
 	r := mux.NewRouter()
 	
-	r.Use(mw.MetricsMiddleware)
+	r.Use(middlewareManager.MetricsMiddleware)
 
-	serviceHttp.MapUserRoutes(r, serviceHandler)
+	// Применяем миддлвары для защиты маршрутов
+	ordersRouter := r.PathPrefix("/orders").Subrouter()
+	ordersRouter.Use(middlewareManager.JWTMiddleware)
+	ordersRouter.Use(middlewareManager.SessionMiddleware)
+	ordersRouter.HandleFunc("/create", serviceHandler.AddNewOrder()).Methods(http.MethodPost)
+	ordersRouter.HandleFunc("/list", serviceHandler.GetOrdersList()).Methods(http.MethodGet)
 
+	// Публичные маршруты
+	authRouter := r.PathPrefix("/auth").Subrouter()
+	authRouter.HandleFunc("/register", serviceHandler.RegisterUser()).Methods(http.MethodPost)
+	authRouter.HandleFunc("/login", serviceHandler.LoginUser()).Methods(http.MethodPost)
+
+	// Создаем сервер
 	s.srv = &http.Server{
-		Addr:         fmt.Sprintf(":%d", s.cfg.Server.Port),
-		Handler:      r,
+		Addr:    fmt.Sprintf(":%d", s.cfg.Server.Port),
+		Handler: r,
 	}
 
+	// Запуск сервера в горутине
 	go func() {
 		s.log.Info("Starting server", slog.Int("port", s.cfg.Server.Port))
 		err := s.srv.ListenAndServe()

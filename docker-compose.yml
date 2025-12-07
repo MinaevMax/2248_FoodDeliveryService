@@ -111,6 +111,24 @@ services:
     networks:
       - app-network
 
+  user_generator:
+    build:
+      context: .
+      dockerfile: Dockerfile.generator
+    container_name: user_generator
+    depends_on:
+      app:
+        condition: service_started
+    environment:
+      # Параметры генерации:
+      # -count 10 = генерировать 10 пользователей
+      # -interval 5s = интервал между каждым пользователем
+      # Убрать -count для непрерывной генерации
+    command: ["/bin/user_generator", "-count", "20", "-interval", "3s", "-url", "http://app:8080"]
+    networks:
+      - app-network
+    restart: "no"
+
 volumes:
   postgres_data:
   grafana_data:

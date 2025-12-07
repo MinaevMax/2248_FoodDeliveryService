@@ -1,0 +1,19 @@
+FROM golang:1.24-alpine AS builder
+
+WORKDIR /build
+
+COPY go.mod go.sum ./
+RUN go mod download
+
+COPY . .
+
+RUN CGO_ENABLED=0 GOOS=linux go build -o ./user_generator cmd/user_generator/main.go
+
+FROM alpine:latest
+
+WORKDIR /root/
+
+COPY --from=builder /build/user_generator /bin/user_generator
+
+# Default: generate 10 users with 5 second interval
+CMD ["/bin/user_generator", "-count", "10", "-interval", "5s", "-url", "http://app:8080"]
