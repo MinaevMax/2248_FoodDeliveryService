@@ -4,7 +4,7 @@ const (
 	// Order queries
 	createOrderQuery = `INSERT INTO orders (user_id) VALUES ($1) RETURNING id`
 	
-	getOrdersQuery = `SELECT id, status, updated_at FROM orders WHERE customer_id = $1 ORDER BY created_at DESC`
+	getOrdersQuery = `SELECT id, status, updated_at FROM orders WHERE user_id = $1 ORDER BY created_at DESC`
 
 	getActiveOrdersQuery = `SELECT id, status, updated_at FROM orders WHERE user_id = $1 AND (status = UNDEFINED OR status = PACKING OR status = ARRIVING) ORDER BY created_at DESC`
 

@@ -84,7 +84,7 @@ func (s *serviceRepo) GetOrdersForUser(ctx context.Context, userID string, isAct
 
 	for rows.Next() {
 		var order models.OrderInfo
-		if err := rows.Scan(&order); err != nil {
+		if err := rows.StructScan(&order); err != nil {
 			return nil, fmt.Errorf("failed to scan orders for client rows: %w", err)
 		}
 		orders = append(orders, &order)
