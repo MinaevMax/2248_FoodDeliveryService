@@ -7,7 +7,7 @@
 //
 
 // Package mocks is a generated GoMock package.
-package mocks
+package mock
 
 import (
 	models "2248_FoodDeliveryService/internal/models"
