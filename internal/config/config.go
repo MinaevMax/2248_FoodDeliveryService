@@ -16,16 +16,21 @@ type Config struct {
 	RabbitMQ   RabbitMQConfig
 }
 
+type KitcherConfig struct {
+	Workers  int
+	RabbitMQ RabbitMQConfig
+}
+
 type ServerConfig struct {
-	Port         int
+	Port int
 }
 
 type PostgresqlConfig struct {
-	Host            string
-	Port            int
-	User            string
-	Password        string
-	Dbname          string
+	Host     string
+	Port     int
+	User     string
+	Password string
+	Dbname   string
 }
 
 type RabbitMQConfig struct {
@@ -33,7 +38,7 @@ type RabbitMQConfig struct {
 	Password string
 	Host     string
 	Port     int
-	Vhost    string	
+	Vhost    string
 }
 
 // Загрузка общего конфига
@@ -59,8 +64,49 @@ func Load() (Config, error) {
 	return cfg, nil
 }
 
+// Загрузка общего конфига
+func LoadWorkersConfig() (KitcherConfig, error) {
+	var cfg KitcherConfig
+	var err error
+
+	cfg.Workers, err = LoadWorkersCount()
+	if err != nil {
+		return KitcherConfig{}, err
+	}
+
+	cfg.RabbitMQ, err = LoadRabbitConfig()
+	if err != nil {
+		return KitcherConfig{}, err
+	}
+
+	return cfg, nil
+}
+
+// Загрузка конфига для сервера
+func LoadWorkersCount() (int, error) {
+	count, err := getEnvInt("WORKERS_COUNT")
+	if err != nil {
+		return 0, err
+	}
+
+	return count, nil
+}
+
 // Загрузка конфига для сервера
 func LoadServerConfig() (ServerConfig, error) {
+	var cfg ServerConfig
+	var err error
+
+	cfg.Port, err = getEnvInt("SERVER_PORT")
+	if err != nil {
+		return ServerConfig{}, err
+	}
+
+	return cfg, nil
+}
+
+// Загрузка конфига для сервиса обработки заказов
+func LoadKitchenConfig() (ServerConfig, error) {
 	var cfg ServerConfig
 	var err error
 

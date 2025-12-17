@@ -12,7 +12,7 @@ type Repository interface {
 	ChangeOrderStatus(ctx context.Context, newStatusData *models.ChangeOrderStatusData) error
 	GetOrdersForUser(ctx context.Context, userID string, isActive bool) ([]*models.OrderInfo, error)
 
-	PublishNewOrder(userID string) error
+	PublishNewOrder(orderId string) error
 	StartStatusChangeConsumer(queueName string)
   
  	GetUserByLogin(ctx context.Context, login string) (*models.UserData, error)

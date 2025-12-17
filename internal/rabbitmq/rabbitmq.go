@@ -5,7 +5,6 @@ import (
 	"context"
 	"fmt"
 	"log/slog"
-	"time"
 
 	backoff "github.com/cenkalti/backoff/v4"
 	"github.com/streadway/amqp"
@@ -32,8 +31,6 @@ type publisherCfg struct {
 	QueueName string
 }
 
-const ctxTimeout = 5 * time.Second
-
 // New создает подключение к RabbitMQ и открывает канал
 func NewRabbitMQ(cfg *config.RabbitMQConfig, ctx context.Context, log *slog.Logger) (*RabbitMQ, error) {
 	dsn := fmt.Sprintf("amqp://%s:%s@%s:%d/%s",
@@ -57,19 +54,15 @@ func NewRabbitMQ(cfg *config.RabbitMQConfig, ctx context.Context, log *slog.Logg
 		return nil, err
 	}
 
-	rabbitCtx, rabbitCancel := context.WithTimeout(context.Background(), ctxTimeout)
-
 	go func() {
 		<-ctx.Done()
-		rabbitCancel()
-		time.Sleep(ctxTimeout)
 		Close(conn, ch, log)
 	}()
 
 	return &RabbitMQ{
 		conn:          conn,
 		Channel:       ch,
-		Ctx:           rabbitCtx,
+		Ctx:           ctx,
 		backoffPolicy: b,
 		PubConf: publisherCfg{"main_exchange", "direct", true, false, false, false, nil, "new-orders"}, // важно, чтобы совпадали поля с аналогичными у консьюмера 
 	}, nil

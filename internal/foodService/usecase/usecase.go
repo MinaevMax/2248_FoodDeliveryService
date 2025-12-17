@@ -30,7 +30,7 @@ func (uc *serviceUC) CreateOrder(ctx context.Context, userID string) (uuid.UUID,
 		uc.log.Error("Failed to create order", slog.Any("error", err))
 		return uuid.UUID{}, err
 	}
-	err = uc.serviceRepo.PublishNewOrder(userID)
+	err = uc.serviceRepo.PublishNewOrder(orderId.String())
 	if err != nil {
 		// Логируем ошибку публикации
 		uc.log.Error("Failed to publish new order", slog.Any("error", err))

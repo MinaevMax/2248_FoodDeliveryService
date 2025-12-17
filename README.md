@@ -16,7 +16,7 @@
 
 ```bash
 # Запустить полный стек (все сервисы + 20 пользователей)
-docker-compose up
+docker compose up
 
 # Дождитесь, пока все контейнеры станут healthy (~30 сек)
 # Food Service API: http://localhost:8080

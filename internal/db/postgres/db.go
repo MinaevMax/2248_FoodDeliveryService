@@ -24,8 +24,6 @@ func NewPostgresDB(cfg *config.PostgresqlConfig) (*sqlx.DB, error) {
 		cfg.Dbname,
 	)
 
-	print(dsn)
-
 	db, err := sqlx.Connect(driverName, dsn)
 	if err != nil {
 		return nil, err

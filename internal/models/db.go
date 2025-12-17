@@ -1,11 +1,16 @@
 package models
 
-import "time"
+import (
+	"time"
+
+	"github.com/google/uuid"
+)
 
 type ChangeOrderStatusData struct {
-	OrderID   string    `db:"order_id" json:"orderID" validate:"required"`
-	NewStatus string    `db:"status" json:"status" validate:"required,oneof=UNDEFINED PACKING ARRIVING COMPLETED CANCELED"`
-	UpdatedAt time.Time `db:"updated_at" json:"-"`
+	OrderID     string    `json:"order_id" validate:"required"`
+	UUIDOrderID uuid.UUID `db:"order_id" json:"-"`
+	NewStatus   string    `db:"status" json:"status" validate:"required,oneof=UNDEFINED PACKING ARRIVING COMPLETED CANCELED"`
+	UpdatedAt   time.Time `db:"updated_at" json:"-"`
 }
 
 type OrderInfo struct {

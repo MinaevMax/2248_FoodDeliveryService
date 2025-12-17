@@ -123,6 +123,28 @@ services:
       - app-network
     restart: "no"
 
+  order_workers:
+    build:
+      context: .
+      dockerfile: Dockerfile.worker
+    container_name: order_workers
+    environment:
+      # Rabbit
+      RABBIT_HOST: rabbitmq
+      RABBIT_PORT: 5672
+      RABBIT_USER: admin
+      RABBIT_PASSWORD: admin
+      RABBIT_VHOST: "foodservice"
+      WORKERS_COUNT: 10
+    depends_on:
+      app:
+        condition: service_started
+      rabbitmq:
+        condition: service_healthy
+    networks:
+      - app-network
+    restart: unless-stopped
+
 volumes:
   postgres_data:
   grafana_data:

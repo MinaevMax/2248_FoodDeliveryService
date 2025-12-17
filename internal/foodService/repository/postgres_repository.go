@@ -39,6 +39,12 @@ func (s *serviceRepo) CreateOrder(ctx context.Context, userID string) (uuid.UUID
 
 // ChangeOrderStatus обновляет статус заказа в БД
 func (s *serviceRepo) ChangeOrderStatus(ctx context.Context, newStatusData *models.ChangeOrderStatusData) error {
+	var err error
+	newStatusData.UUIDOrderID, err = uuid.Parse(newStatusData.OrderID)
+	if err != nil{
+		s.log.Error("failed to parse order uuid", slog.Any("error", err))
+		return err
+	}
 	result, err := s.postgresql.NamedExecContext(
 		ctx,
 		changeOrderStatusQuery,

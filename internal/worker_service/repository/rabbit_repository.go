@@ -1,30 +1,41 @@
 package repository
 
 import (
-	"2248_FoodDeliveryService/internal/models"
-	"context"
+	"2248_FoodDeliveryService/internal/rabbitmq"
+	"2248_FoodDeliveryService/internal/worker_service"
+	"2248_FoodDeliveryService/internal/worker_service/models"
 	"encoding/json"
 	"log/slog"
-	"time"
 
 	"github.com/streadway/amqp"
 )
 
-func (r *serviceRepo) PublishNewOrder(orderId string) error {
-	err := r.rabbit.Channel.ExchangeDeclare(r.rabbit.PubConf.Name, r.rabbit.PubConf.Kind, r.rabbit.PubConf.Durable, r.rabbit.PubConf.AutoDelete, r.rabbit.PubConf.Internal, r.rabbit.PubConf.NoWait, r.rabbit.PubConf.Args)
+type serviceRepo struct {
+	rabbit   *rabbitmq.RabbitMQ
+	orderCh  chan string
+	log      *slog.Logger
+}
+
+func NewServiceRepo(rabbit *rabbitmq.RabbitMQ, orderCh chan string, log *slog.Logger) worker_service.Repository {
+	return &serviceRepo{rabbit: rabbit, orderCh: orderCh, log: log}
+}
+
+func (r *serviceRepo) PublishOrderStatus(orderId string, newStatus string) error {
+	err := r.rabbit.Channel.ExchangeDeclare("main_exchange", "direct", true, false, false, false, nil)
 	if err != nil {
 		r.log.Error("failed to declare an exchange", slog.Any("errors", err))
 		return err
 	}
-
-	body, err := json.Marshal(orderId)
+	r.log.Info(orderId)
+	r.log.Info(newStatus)
+	body, err := json.Marshal(models.NewStatus{OrderID: orderId, NewStatus: newStatus})
 	if err != nil {
 		r.log.Error("failed to marshall error message", slog.Any("error", err))
 		return err
 	}
 
 	err = r.rabbit.Channel.Publish(
-		r.rabbit.PubConf.Name, r.rabbit.PubConf.QueueName, false, false,
+		"main_exchange", "order-status-change", false, false,
 		amqp.Publishing{
 			ContentType:  "application/json",
 			Body:         body,
@@ -40,7 +51,7 @@ func (r *serviceRepo) PublishNewOrder(orderId string) error {
 	return nil
 }
 
-func (r *serviceRepo) StartStatusChangeConsumer(queueName string) {
+func (r *serviceRepo) StartNewOrdersConsumer(queueName string) {
 	q, err := r.rabbit.Channel.QueueDeclare(queueName, true, false, false, false, nil)
 	if err != nil {
 		r.log.Error("failed to declare a queue", slog.Any("errors", err))
@@ -69,26 +80,15 @@ func (r *serviceRepo) StartStatusChangeConsumer(queueName string) {
 					return
 				}
 
-				var newOrderStatus models.ChangeOrderStatusData
-				if err := json.Unmarshal(d.Body, &newOrderStatus); err != nil {
+				orderId := ""
+				if err := json.Unmarshal(d.Body, &orderId); err != nil {
 					r.log.Error("failed to parse rabbit message", slog.Any("errors", err))
 					d.Nack(false, true) // nack-аем сообщение (возвращаем)
 					continue
 				}
-				newOrderStatus.UpdatedAt = time.Now()
-				if err := r.changeStatus(&newOrderStatus); err != nil {
-					r.log.Error("failed to change order status", slog.Any("errors", err))
-					d.Nack(false, true) // nack-аем сообщение (возвращаем)
-					continue
-				}
+				r.orderCh <- orderId
 				d.Ack(false) // подтверждаем обработку
 			}
 		}
 	}()
-}
-
-func (r *serviceRepo) changeStatus(newOrderStatus *models.ChangeOrderStatusData) error {
-	changeOrderStatusCtx, changeOrderStatusCancel := context.WithTimeout(context.Background(), 5*time.Second)
-	defer changeOrderStatusCancel()
-	return r.ChangeOrderStatus(changeOrderStatusCtx, newOrderStatus)
 }
