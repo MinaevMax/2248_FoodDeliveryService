@@ -13,10 +13,10 @@ import (
 	"go.uber.org/mock/gomock"
 )
 
-func TestNewWorkerPool(t *testing.T) {
+func TestWorkerPool_NewWorkerPool(t *testing.T) {
 	repo := mock.NewMockRepository(gomock.NewController(t))
 	logger := slog.New(slog.NewJSONHandler(os.Stdout, nil))
-	t.Run("should create worker pool with correct configuration", func(t *testing.T) {
+	t.Run("TestWorkerPool_NewWorkerPool - success", func(t *testing.T) {
 		wp := NewWorkerPool(5, 10, repo, logger)
 
 		require.Equal(t, 5, wp.maxWorkers)
@@ -119,7 +119,7 @@ func TestWorkerPool_worker(t *testing.T) {
 func TestWorkerPool_Stats(t *testing.T) {
 	repo := mock.NewMockRepository(gomock.NewController(t))
 	logger := slog.New(slog.NewJSONHandler(os.Stdout, nil))
-	t.Run("should return correct statistics", func(t *testing.T) {
+	t.Run("TestWorkerPool_Stats - correct statistics", func(t *testing.T) {
 		repo.EXPECT().
 			PublishOrderStatus(gomock.Any(), gomock.Any()).
 			Return(nil).
@@ -150,7 +150,7 @@ func TestWorkerPool_Run(t *testing.T) {
 	repo := mock.NewMockRepository(gomock.NewController(t))
 	logger := slog.New(slog.NewJSONHandler(os.Stdout, nil))
 
-	t.Run("should process orders from external queue", func(t *testing.T) {
+	t.Run("TestWorkerPool_Run - from external queue", func(t *testing.T) {
 		repo.EXPECT().
 			PublishOrderStatus("order-1", "COMPLETED").
 			Return(nil)
@@ -175,7 +175,7 @@ func TestWorkerPool_Run(t *testing.T) {
 		require.Equal(t, int64(2), wp.enqueued.Load())
 	})
 
-	t.Run("should handle context cancellation", func(t *testing.T) {
+	t.Run("TestWorkerPool_Run - context cancellation", func(t *testing.T) {
 		wp := NewWorkerPool(2, 10, repo, logger)
 		externalQueue := make(chan string, 5)
 		ctx, cancel := context.WithCancel(context.Background())
