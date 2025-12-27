@@ -15,7 +15,6 @@ import (
 	"time"
 
 	"github.com/google/uuid"
-	"github.com/stretchr/testify/assert"
 	"github.com/stretchr/testify/require"
 	"go.uber.org/mock/gomock"
 	"golang.org/x/crypto/bcrypt"
@@ -32,9 +31,9 @@ func TestHandler_AddNewOrder(t *testing.T) {
 
 	handler := NewHandler(serviceUC, logger)
 	handlerFunc := handler.AddNewOrder()
+	userID := uuid.New()
 
-	t.Run("AddNewOrder - SUCCESS", func(t *testing.T) {
-		userID := uuid.New()
+	t.Run("Success", func(t *testing.T) {
 		orderID := uuid.New()
 
 		serviceUC.EXPECT().
@@ -59,17 +58,17 @@ func TestHandler_AddNewOrder(t *testing.T) {
 
 		handlerFunc(res, req)
 
-		assert.Equal(t, http.StatusOK, res.Code)
+		require.Equal(t, http.StatusOK, res.Code)
 
 		var response []uuid.UUID
 		err = json.Unmarshal(res.Body.Bytes(), &response)
 		require.NoError(t, err)
 
-		assert.Len(t, response, 1)
-		assert.Equal(t, orderID, response[0])
+		require.Len(t, response, 1)
+		require.Equal(t, orderID, response[0])
 	})
 
-	t.Run("AddNewOrder - UNAUTHORIZED - no userID in context", func(t *testing.T) {
+	t.Run("Unauthorized", func(t *testing.T) {
 		order := &models.NewOrderData{
 			Amount: 1,
 		}
@@ -82,13 +81,11 @@ func TestHandler_AddNewOrder(t *testing.T) {
 
 		handlerFunc(res, req)
 
-		assert.Equal(t, http.StatusUnauthorized, res.Code)
-		assert.Contains(t, res.Body.String(), "User not authenticated")
+		require.Equal(t, http.StatusUnauthorized, res.Code)
+		require.Contains(t, res.Body.String(), "User not authenticated")
 	})
 
-	t.Run("bad request - invalid JSON", func(t *testing.T) {
-		userID := uuid.New()
-
+	t.Run("Invalid JSON", func(t *testing.T) {
 		req := httptest.NewRequest(http.MethodPost, "/orders/create", bytes.NewReader([]byte("{invalid json")))
 		ctx := context.WithValue(req.Context(), "userID", userID.String())
 		req = req.WithContext(ctx)
@@ -96,13 +93,11 @@ func TestHandler_AddNewOrder(t *testing.T) {
 
 		handlerFunc(res, req)
 
-		assert.Equal(t, http.StatusBadRequest, res.Code)
-		assert.Contains(t, res.Body.String(), "Invalid JSON")
+		require.Equal(t, http.StatusBadRequest, res.Code)
+		require.Contains(t, res.Body.String(), "Invalid JSON")
 	})
 
-	t.Run("bad request - validation error", func(t *testing.T) {
-		userID := uuid.New()
-
+	t.Run("Validation error", func(t *testing.T) {
 		orderData := &models.NewOrderData{}
 		body, _ := json.Marshal(orderData)
 		req := httptest.NewRequest(http.MethodPost, "/orders/create", bytes.NewReader(body))
@@ -112,9 +107,8 @@ func TestHandler_AddNewOrder(t *testing.T) {
 
 		handlerFunc(res, req)
 
-		assert.Equal(t, http.StatusBadRequest, res.Code)
+		require.Equal(t, http.StatusBadRequest, res.Code)
 	})
-
 }
 
 func TestHandler_GetOrdersList(t *testing.T) {
@@ -129,13 +123,14 @@ func TestHandler_GetOrdersList(t *testing.T) {
 	handler := NewHandler(serviceUC, logger)
 	handlerFunc := handler.GetOrdersList()
 
-	t.Run("success - get all orders (no active param)", func(t *testing.T) {
-		userID := uuid.New()
-		expectedOrders := []*models.OrderInfo{
-			{ID: "order-1", Status: "PACKING", UpdatedAt: time.Now().Add(-24 * time.Hour)},
-			{ID: "order-2", Status: "PACKING", UpdatedAt: time.Now().Add(-48 * time.Hour)},
-		}
+	expectedOrders := []*models.OrderInfo{
+		{ID: "order-1", Status: "PACKING", UpdatedAt: time.Now().Add(-24 * time.Hour)},
+		{ID: "order-2", Status: "PACKING", UpdatedAt: time.Now().Add(-48 * time.Hour)},
+	}
 
+	userID := uuid.New()
+
+	t.Run("Get all orders", func(t *testing.T) {
 		serviceUC.EXPECT().
 			GetOrders(gomock.Any(), userID.String(), false).
 			AnyTimes().
@@ -148,7 +143,7 @@ func TestHandler_GetOrdersList(t *testing.T) {
 
 		handlerFunc(res, req)
 
-		assert.Equal(t, http.StatusOK, res.Code)
+		require.Equal(t, http.StatusOK, res.Code)
 
 		var response map[string]interface{}
 		err := json.Unmarshal(res.Body.Bytes(), &response)
@@ -157,25 +152,19 @@ func TestHandler_GetOrdersList(t *testing.T) {
 
 		count, ok := response["count"].(float64)
 		require.True(t, ok)
-		assert.Equal(t, 2, int(count))
+		require.Equal(t, 2, int(count))
 
 		itemsSlice, ok := response["items"].([]interface{})
 		require.True(t, ok)
-		assert.Len(t, itemsSlice, 2)
+		require.Len(t, itemsSlice, 2)
 
 		req = httptest.NewRequest(http.MethodGet, "/orders/list?active=false", nil)
 		req = req.WithContext(ctx)
 		handlerFunc(res, req)
-		assert.Equal(t, http.StatusOK, res.Code)
+		require.Equal(t, http.StatusOK, res.Code)
 	})
 
-	t.Run("success - get all orders active", func(t *testing.T) {
-		userID := uuid.New()
-		expectedOrders := []*models.OrderInfo{
-			{ID: "order-1", Status: "PACKING", UpdatedAt: time.Now().Add(-24 * time.Hour)},
-			{ID: "order-2", Status: "PACKING", UpdatedAt: time.Now().Add(-48 * time.Hour)},
-		}
-
+	t.Run("Get all active orders", func(t *testing.T) {
 		serviceUC.EXPECT().
 			GetOrders(gomock.Any(), userID.String(), true).
 			Return(expectedOrders, nil)
@@ -185,28 +174,28 @@ func TestHandler_GetOrdersList(t *testing.T) {
 		req = req.WithContext(ctx)
 		res := httptest.NewRecorder()
 		handlerFunc(res, req)
-		assert.Equal(t, http.StatusOK, res.Code)
+		require.Equal(t, http.StatusOK, res.Code)
 	})
 
-	t.Run("success - get all orders forbidden", func(t *testing.T) {
-		userID := uuid.New()
+	t.Run("Get all orders with invalid param", func(t *testing.T) {
+
 		req := httptest.NewRequest(http.MethodGet, "/orders/list?active=none", nil)
 		ctx := context.WithValue(req.Context(), "userID", userID.String())
 		req = req.WithContext(ctx)
 		res := httptest.NewRecorder()
 		handlerFunc(res, req)
-		assert.Equal(t, http.StatusBadRequest, res.Code)
+		require.Equal(t, http.StatusBadRequest, res.Code)
 	})
 
-	t.Run("AddNewOrder - UNAUTHORIZED - no userID in context", func(t *testing.T) {
+	t.Run("Unauthorized", func(t *testing.T) {
 		req := httptest.NewRequest(http.MethodGet, "/orders/list", bytes.NewReader(nil))
 		req.Header.Set("Content-Type", "Application/JSON")
 		res := httptest.NewRecorder()
 
 		handlerFunc(res, req)
 
-		assert.Equal(t, http.StatusUnauthorized, res.Code)
-		assert.Contains(t, res.Body.String(), "User not authenticated")
+		require.Equal(t, http.StatusUnauthorized, res.Code)
+		require.Contains(t, res.Body.String(), "User not authenticated")
 	})
 
 }
@@ -223,8 +212,9 @@ func TestHandler_RegisterUser(t *testing.T) {
 	handler := NewHandler(serviceUC, logger)
 	handlerFunc := handler.RegisterUser()
 
-	t.Run("error - short login and password", func(t *testing.T) {
-		userID := uuid.New()
+	userID := uuid.New()
+
+	t.Run("Short login and password", func(t *testing.T) {
 
 		body, _ := json.Marshal(map[string]interface{}{
 			"login":    "ab",
@@ -239,10 +229,10 @@ func TestHandler_RegisterUser(t *testing.T) {
 
 		req = httptest.NewRequest(http.MethodPost, "/auth/register", bytes.NewReader([]byte("{invalid json")))
 		handlerFunc(res, req)
-		assert.Equal(t, http.StatusBadRequest, res.Code)
+		require.Equal(t, http.StatusBadRequest, res.Code)
 	})
 
-	t.Run("error - use case returns nil user with nil error", func(t *testing.T) {
+	t.Run("User already exists", func(t *testing.T) {
 		login := "testuser"
 		password := "password123"
 
@@ -257,10 +247,10 @@ func TestHandler_RegisterUser(t *testing.T) {
 
 		handlerFunc(res, req)
 
-		assert.Equal(t, http.StatusConflict, res.Code)
+		require.Equal(t, http.StatusConflict, res.Code)
 	})
 
-	t.Run("success", func(t *testing.T) {
+	t.Run("Success", func(t *testing.T) {
 		login := "testuser"
 		password := "password123"
 		user := &models.UserData{
@@ -278,7 +268,7 @@ func TestHandler_RegisterUser(t *testing.T) {
 
 		handlerFunc(res, req)
 
-		assert.Equal(t, http.StatusCreated, res.Code)
+		require.Equal(t, http.StatusCreated, res.Code)
 	})
 }
 
@@ -294,20 +284,20 @@ func TestHandler_LoginUser(t *testing.T) {
 	handler := NewHandler(serviceUC, logger)
 	handlerFunc := handler.LoginUser()
 
-	t.Run("success - valid credentials with session ID validation", func(t *testing.T) {
-		userID := uuid.New()
-		login := "user"
-		password := "pass"
-		hashedPassword, _ := bcrypt.GenerateFromPassword([]byte(password), bcrypt.DefaultCost)
-		email := "a@b.c"
+	userID := uuid.New()
+	login := "user"
+	password := "pass"
+	hashedPassword, _ := bcrypt.GenerateFromPassword([]byte(password), bcrypt.DefaultCost)
+	email := "a@b.c"
 
-		user := &models.UserData{
-			ID:       userID.String(),
-			Login:    login,
-			Password: string(hashedPassword),
-			Email:    email,
-		}
+	user := &models.UserData{
+		ID:       userID.String(),
+		Login:    login,
+		Password: string(hashedPassword),
+		Email:    email,
+	}
 
+	t.Run("Success", func(t *testing.T) {
 		serviceUC.EXPECT().
 			GetUserByLogin(gomock.Any(), login).
 			Return(user, nil)
@@ -323,21 +313,99 @@ func TestHandler_LoginUser(t *testing.T) {
 
 		handlerFunc(res, req)
 
-		assert.Equal(t, http.StatusOK, res.Code)
-		assert.Equal(t, "application/json", res.Header().Get("Content-Type"))
+		require.Equal(t, http.StatusOK, res.Code)
+		require.Equal(t, "application/json", res.Header().Get("Content-Type"))
 
 		var response map[string]interface{}
 		err := json.Unmarshal(res.Body.Bytes(), &response)
 		require.NoError(t, err)
 
 		userData := response["user"].(map[string]interface{})
-		assert.Equal(t, userID.String(), userData["id"])
-		assert.Equal(t, login, userData["login"])
-		assert.Equal(t, email, userData["email"])
+		require.Equal(t, userID.String(), userData["id"])
+		require.Equal(t, login, userData["login"])
+		require.Equal(t, email, userData["email"])
 
-		assert.Contains(t, response, "token")
+		require.Contains(t, response, "token")
 		token, ok := response["token"].(string)
-		assert.True(t, ok)
-		assert.NotEmpty(t, token)
+		require.True(t, ok)
+		require.NotEmpty(t, token)
+	})
+
+	t.Run("Invalid json body", func(t *testing.T) {
+		t.Parallel()
+
+		reqBody := strings.NewReader(`{"login": "user", "password": "pass"`) // missing closing brace
+		req := httptest.NewRequest(http.MethodPost, "/login", reqBody)
+		w := httptest.NewRecorder()
+
+		handlerFunc(w, req)
+
+		require.Equal(t, http.StatusBadRequest, w.Code)
+		require.Contains(t, w.Body.String(), "invalid request")
+	})
+
+	t.Run("Validation failed", func(t *testing.T) {
+		t.Parallel()
+
+		reqBody := strings.NewReader(`{"login": "", "password": "password123"}`)
+		req := httptest.NewRequest(http.MethodPost, "/login", reqBody)
+		w := httptest.NewRecorder()
+
+		handlerFunc(w, req)
+
+		require.Equal(t, http.StatusBadRequest, w.Code)
+		require.Contains(t, w.Body.String(), "validation failed")
+	})
+
+	t.Run("User not found", func(t *testing.T) {
+		t.Parallel()
+
+		reqBody := strings.NewReader(`{"login": "nonexistent", "password": "password123"}`)
+		req := httptest.NewRequest(http.MethodPost, "/login", reqBody)
+		w := httptest.NewRecorder()
+
+		serviceUC.EXPECT().GetUserByLogin(gomock.Any(), "nonexistent").
+			Return(nil, errors.New("user not found"))
+
+		handlerFunc(w, req)
+
+		require.Equal(t, http.StatusUnauthorized, w.Code)
+		require.Contains(t, w.Body.String(), "invalid credentials")
+	})
+
+	t.Run("Invalid password", func(t *testing.T) {
+		t.Parallel()
+
+		reqBody := strings.NewReader(`{"login": "user", "password": "wrongpassword"}`)
+		req := httptest.NewRequest(http.MethodPost, "/login", reqBody)
+		w := httptest.NewRecorder()
+
+		serviceUC.EXPECT().
+			GetUserByLogin(gomock.Any(), login).
+			Return(user, nil)
+
+		handlerFunc(w, req)
+
+		require.Equal(t, http.StatusUnauthorized, w.Code)
+		require.Contains(t, w.Body.String(), "invalid credentials")
+	})
+
+	t.Run("Session creation failed", func(t *testing.T) {
+		t.Parallel()
+
+		reqBody := strings.NewReader(`{"login": "testuser", "password": "pass"}`)
+		req := httptest.NewRequest(http.MethodPost, "/login", reqBody)
+		w := httptest.NewRecorder()
+
+		serviceUC.EXPECT().GetUserByLogin(gomock.Any(), "testuser").
+			Return(user, nil)
+
+		serviceUC.EXPECT().CreateSession(gomock.Any(), gomock.Any(), userID.String()).
+			Return(errors.New("database error"))
+
+		handlerFunc(w, req)
+
+		require.Equal(t, http.StatusInternalServerError, w.Code)
+		require.Contains(t, w.Body.String(), "failed to create session")
 	})
 }
