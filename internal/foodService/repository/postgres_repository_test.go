@@ -19,6 +19,7 @@ import (
 	"github.com/stretchr/testify/require"
 )
 
+// TODO поменять на testSuite
 type testContext struct {
 	sqlxDB      *sqlx.DB
 	mock        sqlmock.Sqlmock

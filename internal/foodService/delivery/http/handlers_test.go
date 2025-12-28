@@ -1,6 +1,7 @@
 package http
 
 import (
+	foodservice "2248_FoodDeliveryService/internal/foodService"
 	"2248_FoodDeliveryService/internal/foodService/mock"
 	"2248_FoodDeliveryService/internal/models"
 	"bytes"
@@ -20,23 +21,40 @@ import (
 	"golang.org/x/crypto/bcrypt"
 )
 
-func TestHandler_AddNewOrder(t *testing.T) {
-	t.Parallel()
+// todo поменять на testsuite
+type testContext struct {
+	ctrl      *gomock.Controller
+	serviceUC *mock.MockUseCase
+	handler   foodservice.Handler
+}
 
+func (c *testContext) setupTest(t *testing.T) {
 	ctrl := gomock.NewController(t)
+	c.ctrl = ctrl
 	defer ctrl.Finish()
 
 	logger := slog.Default()
-	serviceUC := mock.NewMockUseCase(ctrl)
+	c.serviceUC = mock.NewMockUseCase(ctrl)
+	c.handler = NewHandler(c.serviceUC, logger)
+}
 
-	handler := NewHandler(serviceUC, logger)
-	handlerFunc := handler.AddNewOrder()
+func (c *testContext) teardownTest() {
+	c.ctrl.Finish()
+}
+
+func TestHandler_AddNewOrder(t *testing.T) {
+	t.Parallel()
+	tc := &testContext{}
+	tc.setupTest(t)
+	defer tc.teardownTest()
+
+	handlerFunc := tc.handler.AddNewOrder()
 	userID := uuid.New()
 
 	t.Run("Success", func(t *testing.T) {
 		orderID := uuid.New()
 
-		serviceUC.EXPECT().
+		tc.serviceUC.EXPECT().
 			CreateOrder(gomock.Any(), userID.String()).
 			Return(orderID, nil)
 
@@ -113,15 +131,11 @@ func TestHandler_AddNewOrder(t *testing.T) {
 
 func TestHandler_GetOrdersList(t *testing.T) {
 	t.Parallel()
+	tc := &testContext{}
+	tc.setupTest(t)
+	defer tc.teardownTest()
 
-	ctrl := gomock.NewController(t)
-	defer ctrl.Finish()
-
-	logger := slog.Default()
-	serviceUC := mock.NewMockUseCase(ctrl)
-
-	handler := NewHandler(serviceUC, logger)
-	handlerFunc := handler.GetOrdersList()
+	handlerFunc := tc.handler.GetOrdersList()
 
 	expectedOrders := []*models.OrderInfo{
 		{ID: "order-1", Status: "PACKING", UpdatedAt: time.Now().Add(-24 * time.Hour)},
@@ -131,7 +145,7 @@ func TestHandler_GetOrdersList(t *testing.T) {
 	userID := uuid.New()
 
 	t.Run("Get all orders", func(t *testing.T) {
-		serviceUC.EXPECT().
+		tc.serviceUC.EXPECT().
 			GetOrders(gomock.Any(), userID.String(), false).
 			AnyTimes().
 			Return(expectedOrders, nil)
@@ -165,7 +179,7 @@ func TestHandler_GetOrdersList(t *testing.T) {
 	})
 
 	t.Run("Get all active orders", func(t *testing.T) {
-		serviceUC.EXPECT().
+		tc.serviceUC.EXPECT().
 			GetOrders(gomock.Any(), userID.String(), true).
 			Return(expectedOrders, nil)
 
@@ -202,16 +216,11 @@ func TestHandler_GetOrdersList(t *testing.T) {
 
 func TestHandler_RegisterUser(t *testing.T) {
 	t.Parallel()
+	tc := &testContext{}
+	tc.setupTest(t)
+	defer tc.teardownTest()
 
-	ctrl := gomock.NewController(t)
-	defer ctrl.Finish()
-
-	logger := slog.Default()
-	serviceUC := mock.NewMockUseCase(ctrl)
-
-	handler := NewHandler(serviceUC, logger)
-	handlerFunc := handler.RegisterUser()
-
+	handlerFunc := tc.handler.RegisterUser()
 	userID := uuid.New()
 
 	t.Run("Short login and password", func(t *testing.T) {
@@ -236,7 +245,7 @@ func TestHandler_RegisterUser(t *testing.T) {
 		login := "testuser"
 		password := "password123"
 
-		serviceUC.EXPECT().
+		tc.serviceUC.EXPECT().
 			RegisterUser(gomock.Any(), login, password).
 			Return(nil, errors.New("user already exists"))
 
@@ -257,7 +266,7 @@ func TestHandler_RegisterUser(t *testing.T) {
 			ID: uuid.New().String(),
 		}
 
-		serviceUC.EXPECT().
+		tc.serviceUC.EXPECT().
 			RegisterUser(gomock.Any(), login, password).
 			Return(user, nil)
 
@@ -274,15 +283,11 @@ func TestHandler_RegisterUser(t *testing.T) {
 
 func TestHandler_LoginUser(t *testing.T) {
 	t.Parallel()
+	tc := &testContext{}
+	tc.setupTest(t)
+	defer tc.teardownTest()
 
-	ctrl := gomock.NewController(t)
-	defer ctrl.Finish()
-
-	logger := slog.Default()
-	serviceUC := mock.NewMockUseCase(ctrl)
-
-	handler := NewHandler(serviceUC, logger)
-	handlerFunc := handler.LoginUser()
+	handlerFunc := tc.handler.LoginUser()
 
 	userID := uuid.New()
 	login := "user"
@@ -298,11 +303,11 @@ func TestHandler_LoginUser(t *testing.T) {
 	}
 
 	t.Run("Success", func(t *testing.T) {
-		serviceUC.EXPECT().
+		tc.serviceUC.EXPECT().
 			GetUserByLogin(gomock.Any(), login).
 			Return(user, nil)
 
-		serviceUC.EXPECT().
+		tc.serviceUC.EXPECT().
 			CreateSession(gomock.Any(), gomock.AssignableToTypeOf(""), userID.String()).
 			Return(nil)
 
@@ -364,7 +369,7 @@ func TestHandler_LoginUser(t *testing.T) {
 		req := httptest.NewRequest(http.MethodPost, "/login", reqBody)
 		w := httptest.NewRecorder()
 
-		serviceUC.EXPECT().GetUserByLogin(gomock.Any(), "nonexistent").
+		tc.serviceUC.EXPECT().GetUserByLogin(gomock.Any(), "nonexistent").
 			Return(nil, errors.New("user not found"))
 
 		handlerFunc(w, req)
@@ -380,7 +385,7 @@ func TestHandler_LoginUser(t *testing.T) {
 		req := httptest.NewRequest(http.MethodPost, "/login", reqBody)
 		w := httptest.NewRecorder()
 
-		serviceUC.EXPECT().
+		tc.serviceUC.EXPECT().
 			GetUserByLogin(gomock.Any(), login).
 			Return(user, nil)
 
@@ -397,10 +402,10 @@ func TestHandler_LoginUser(t *testing.T) {
 		req := httptest.NewRequest(http.MethodPost, "/login", reqBody)
 		w := httptest.NewRecorder()
 
-		serviceUC.EXPECT().GetUserByLogin(gomock.Any(), "testuser").
+		tc.serviceUC.EXPECT().GetUserByLogin(gomock.Any(), "testuser").
 			Return(user, nil)
 
-		serviceUC.EXPECT().CreateSession(gomock.Any(), gomock.Any(), userID.String()).
+		tc.serviceUC.EXPECT().CreateSession(gomock.Any(), gomock.Any(), userID.String()).
 			Return(errors.New("database error"))
 
 		handlerFunc(w, req)
