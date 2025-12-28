@@ -10,6 +10,8 @@ import (
 	"time"
 
 	"2248_FoodDeliveryService/internal/user_generator/models"
+
+	"github.com/google/uuid"
 )
 
 type Client struct {
@@ -96,14 +98,14 @@ func (c *Client) LoginUser(login, password string) (string, error) {
 }
 
 // CreateOrder создаёт заказ с указанной суммой (требует JWT токен)
-func (c *Client) CreateOrder(token string, amount int) (int64, error) {
+func (c *Client) CreateOrder(token string, amount int) (string, error) {
 	req := models.OrderRequest{
 		Amount: amount,
 	}
 
 	body, err := json.Marshal(req)
 	if err != nil {
-		return 0, fmt.Errorf("failed to marshal request: %w", err)
+		return "", fmt.Errorf("failed to marshal request: %w", err)
 	}
 
 	httpReq, err := http.NewRequest(
@@ -112,7 +114,7 @@ func (c *Client) CreateOrder(token string, amount int) (int64, error) {
 		bytes.NewReader(body),
 	)
 	if err != nil {
-		return 0, fmt.Errorf("failed to create request: %w", err)
+		return "", fmt.Errorf("failed to create request: %w", err)
 	}
 
 	httpReq.Header.Set("Authorization", fmt.Sprintf("Bearer %s", token))
@@ -120,20 +122,19 @@ func (c *Client) CreateOrder(token string, amount int) (int64, error) {
 
 	resp, err := c.httpClient.Do(httpReq)
 	if err != nil {
-		return 0, fmt.Errorf("failed to create order: %w", err)
+		return "", fmt.Errorf("failed to create order: %w", err)
 	}
 	defer resp.Body.Close()
 
 	if resp.StatusCode != http.StatusOK {
 		body, _ := io.ReadAll(resp.Body)
-		return 0, fmt.Errorf("create order failed with status %d: %s", resp.StatusCode, string(body))
+		return "", fmt.Errorf("create order failed with status %d: %s", resp.StatusCode, string(body))
 	}
 
-	var orderID int64
-	if err := json.NewDecoder(resp.Body).Decode(&orderID); err != nil {
-		return 0, fmt.Errorf("failed to decode order response: %w", err)
+	var orderIDs []uuid.UUID
+	if err := json.NewDecoder(resp.Body).Decode(&orderIDs); err != nil {
+		return "", fmt.Errorf("failed to decode order response: %w", err)
 	}
-
-	c.log.Info("Order created", slog.Int64("order_id", orderID), slog.Int("amount", amount))
-	return orderID, nil
+	c.log.Info("Order created", orderIDs[0].String(), string(body))
+	return orderIDs[0].String(), nil
 }
