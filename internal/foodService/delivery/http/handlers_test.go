@@ -17,44 +17,37 @@ import (
 
 	"github.com/google/uuid"
 	"github.com/stretchr/testify/require"
+	"github.com/stretchr/testify/suite"
 	"go.uber.org/mock/gomock"
 	"golang.org/x/crypto/bcrypt"
 )
 
-// todo поменять на testsuite
-type testContext struct {
+type TestSuite struct {
+	suite.Suite
 	ctrl      *gomock.Controller
 	serviceUC *mock.MockUseCase
 	handler   foodservice.Handler
 }
 
-func (c *testContext) setupTest(t *testing.T) {
-	ctrl := gomock.NewController(t)
-	c.ctrl = ctrl
+func (suite *TestSuite) SetupTest() {
+	ctrl := gomock.NewController(suite.T())
+	suite.ctrl = ctrl
 	defer ctrl.Finish()
 
 	logger := slog.Default()
-	c.serviceUC = mock.NewMockUseCase(ctrl)
-	c.handler = NewHandler(c.serviceUC, logger)
+	suite.serviceUC = mock.NewMockUseCase(ctrl)
+	suite.handler = NewHandler(suite.serviceUC, logger)
 }
 
-func (c *testContext) teardownTest() {
-	c.ctrl.Finish()
-}
-
-func TestHandler_AddNewOrder(t *testing.T) {
-	t.Parallel()
-	tc := &testContext{}
-	tc.setupTest(t)
-	defer tc.teardownTest()
-
-	handlerFunc := tc.handler.AddNewOrder()
+func (suite *TestSuite) TestHandler_AddNewOrder() {
+	suite.T().Parallel()
+	handlerFunc := suite.handler.AddNewOrder()
 	userID := uuid.New()
 
-	t.Run("Success", func(t *testing.T) {
+	suite.T().Run("Success", func(t *testing.T) {
 		orderID := uuid.New()
 
-		tc.serviceUC.EXPECT().
+		suite.serviceUC.EXPECT().
 			CreateOrder(gomock.Any(), userID.String()).
 			Return(orderID, nil)
 
@@ -86,7 +79,7 @@ func TestHandler_AddNewOrder(t *testing.T) {
 		require.Equal(t, orderID, response[0])
 	})
 
-	t.Run("Unauthorized", func(t *testing.T) {
+	suite.T().Run("Unauthorized", func(t *testing.T) {
 		order := &models.NewOrderData{
 			Amount: 1,
 		}
@@ -103,7 +96,7 @@ func TestHandler_AddNewOrder(t *testing.T) {
 		require.Contains(t, res.Body.String(), "User not authenticated")
 	})
 
-	t.Run("Invalid JSON", func(t *testing.T) {
+	suite.T().Run("Invalid JSON", func(t *testing.T) {
 		req := httptest.NewRequest(http.MethodPost, "/orders/create", bytes.NewReader([]byte("{invalid json")))
 		ctx := context.WithValue(req.Context(), "userID", userID.String())
 		req = req.WithContext(ctx)
@@ -115,7 +108,7 @@ func TestHandler_AddNewOrder(t *testing.T) {
 		require.Contains(t, res.Body.String(), "Invalid JSON")
 	})
 
-	t.Run("Validation error", func(t *testing.T) {
+	suite.T().Run("Validation error", func(t *testing.T) {
 		orderData := &models.NewOrderData{}
 		body, _ := json.Marshal(orderData)
 		req := httptest.NewRequest(http.MethodPost, "/orders/create", bytes.NewReader(body))
@@ -129,13 +122,9 @@ func TestHandler_AddNewOrder(t *testing.T) {
 	})
 }
 
-func TestHandler_GetOrdersList(t *testing.T) {
-	t.Parallel()
-	tc := &testContext{}
-	tc.setupTest(t)
-	defer tc.teardownTest()
-
-	handlerFunc := tc.handler.GetOrdersList()
+func (suite *TestSuite) TestHandler_GetOrdersList() {
+	suite.T().Parallel()
+	handlerFunc := suite.handler.GetOrdersList()
 
 	expectedOrders := []*models.OrderInfo{
 		{ID: "order-1", Status: "PACKING", UpdatedAt: time.Now().Add(-24 * time.Hour)},
@@ -144,8 +133,8 @@ func TestHandler_GetOrdersList(t *testing.T) {
 
 	userID := uuid.New()
 
-	t.Run("Get all orders", func(t *testing.T) {
-		tc.serviceUC.EXPECT().
+	suite.T().Run("Get all orders", func(t *testing.T) {
+		suite.serviceUC.EXPECT().
 			GetOrders(gomock.Any(), userID.String(), false).
 			AnyTimes().
 			Return(expectedOrders, nil)
@@ -178,8 +167,8 @@ func TestHandler_GetOrdersList(t *testing.T) {
 		require.Equal(t, http.StatusOK, res.Code)
 	})
 
-	t.Run("Get all active orders", func(t *testing.T) {
-		tc.serviceUC.EXPECT().
+	suite.T().Run("Get all active orders", func(t *testing.T) {
+		suite.serviceUC.EXPECT().
 			GetOrders(gomock.Any(), userID.String(), true).
 			Return(expectedOrders, nil)
 
@@ -191,7 +180,7 @@ func TestHandler_GetOrdersList(t *testing.T) {
 		require.Equal(t, http.StatusOK, res.Code)
 	})
 
-	t.Run("Get all orders with invalid param", func(t *testing.T) {
+	suite.T().Run("Get all orders with invalid param", func(t *testing.T) {
 
 		req := httptest.NewRequest(http.MethodGet, "/orders/list?active=none", nil)
 		ctx := context.WithValue(req.Context(), "userID", userID.String())
@@ -201,7 +190,7 @@ func TestHandler_GetOrdersList(t *testing.T) {
 		require.Equal(t, http.StatusBadRequest, res.Code)
 	})
 
-	t.Run("Unauthorized", func(t *testing.T) {
+	suite.T().Run("Unauthorized", func(t *testing.T) {
 		req := httptest.NewRequest(http.MethodGet, "/orders/list", bytes.NewReader(nil))
 		req.Header.Set("Content-Type", "Application/JSON")
 		res := httptest.NewRecorder()
@@ -214,16 +203,12 @@ func TestHandler_GetOrdersList(t *testing.T) {
 
 }
 
-func TestHandler_RegisterUser(t *testing.T) {
-	t.Parallel()
-	tc := &testContext{}
-	tc.setupTest(t)
-	defer tc.teardownTest()
-
-	handlerFunc := tc.handler.RegisterUser()
+func (suite *TestSuite) TestHandler_RegisterUser() {
+	suite.T().Parallel()
+	handlerFunc := suite.handler.RegisterUser()
 	userID := uuid.New()
 
-	t.Run("Short login and password", func(t *testing.T) {
+	suite.T().Run("Short login and password", func(t *testing.T) {
 
 		body, _ := json.Marshal(map[string]interface{}{
 			"login":    "ab",
@@ -241,11 +226,11 @@ func TestHandler_RegisterUser(t *testing.T) {
 		require.Equal(t, http.StatusBadRequest, res.Code)
 	})
 
-	t.Run("User already exists", func(t *testing.T) {
+	suite.T().Run("User already exists", func(t *testing.T) {
 		login := "testuser"
 		password := "password123"
 
-		tc.serviceUC.EXPECT().
+		suite.serviceUC.EXPECT().
 			RegisterUser(gomock.Any(), login, password).
 			Return(nil, errors.New("user already exists"))
 
@@ -259,14 +244,14 @@ func TestHandler_RegisterUser(t *testing.T) {
 		require.Equal(t, http.StatusConflict, res.Code)
 	})
 
-	t.Run("Success", func(t *testing.T) {
+	suite.T().Run("Success", func(t *testing.T) {
 		login := "testuser"
 		password := "password123"
 		user := &models.UserData{
 			ID: uuid.New().String(),
 		}
 
-		tc.serviceUC.EXPECT().
+		suite.serviceUC.EXPECT().
 			RegisterUser(gomock.Any(), login, password).
 			Return(user, nil)
 
@@ -281,13 +266,9 @@ func TestHandler_RegisterUser(t *testing.T) {
 	})
 }
 
-func TestHandler_LoginUser(t *testing.T) {
-	t.Parallel()
-	tc := &testContext{}
-	tc.setupTest(t)
-	defer tc.teardownTest()
-
-	handlerFunc := tc.handler.LoginUser()
+func (suite *TestSuite) TestHandler_LoginUser() {
+	suite.T().Parallel()
+	handlerFunc := suite.handler.LoginUser()
 
 	userID := uuid.New()
 	login := "user"
@@ -302,12 +283,12 @@ func TestHandler_LoginUser(t *testing.T) {
 		Email:    email,
 	}
 
-	t.Run("Success", func(t *testing.T) {
-		tc.serviceUC.EXPECT().
+	suite.T().Run("Success", func(t *testing.T) {
+		suite.serviceUC.EXPECT().
 			GetUserByLogin(gomock.Any(), login).
 			Return(user, nil)
 
-		tc.serviceUC.EXPECT().
+		suite.serviceUC.EXPECT().
 			CreateSession(gomock.Any(), gomock.AssignableToTypeOf(""), userID.String()).
 			Return(nil)
 
@@ -336,7 +317,7 @@ func TestHandler_LoginUser(t *testing.T) {
 		require.NotEmpty(t, token)
 	})
 
-	t.Run("Invalid json body", func(t *testing.T) {
+	suite.T().Run("Invalid json body", func(t *testing.T) {
 		t.Parallel()
 
 		reqBody := strings.NewReader(`{"login": "user", "password": "pass"`) // missing closing brace
@@ -349,7 +330,7 @@ func TestHandler_LoginUser(t *testing.T) {
 		require.Contains(t, w.Body.String(), "invalid request")
 	})
 
-	t.Run("Validation failed", func(t *testing.T) {
+	suite.T().Run("Validation failed", func(t *testing.T) {
 		t.Parallel()
 
 		reqBody := strings.NewReader(`{"login": "", "password": "password123"}`)
@@ -362,14 +343,14 @@ func TestHandler_LoginUser(t *testing.T) {
 		require.Contains(t, w.Body.String(), "validation failed")
 	})
 
-	t.Run("User not found", func(t *testing.T) {
+	suite.T().Run("User not found", func(t *testing.T) {
 		t.Parallel()
 
 		reqBody := strings.NewReader(`{"login": "nonexistent", "password": "password123"}`)
 		req := httptest.NewRequest(http.MethodPost, "/login", reqBody)
 		w := httptest.NewRecorder()
 
-		tc.serviceUC.EXPECT().GetUserByLogin(gomock.Any(), "nonexistent").
+		suite.serviceUC.EXPECT().GetUserByLogin(gomock.Any(), "nonexistent").
 			Return(nil, errors.New("user not found"))
 
 		handlerFunc(w, req)
@@ -378,14 +359,14 @@ func TestHandler_LoginUser(t *testing.T) {
 		require.Contains(t, w.Body.String(), "invalid credentials")
 	})
 
-	t.Run("Invalid password", func(t *testing.T) {
+	suite.T().Run("Invalid password", func(t *testing.T) {
 		t.Parallel()
 
 		reqBody := strings.NewReader(`{"login": "user", "password": "wrongpassword"}`)
 		req := httptest.NewRequest(http.MethodPost, "/login", reqBody)
 		w := httptest.NewRecorder()
 
-		tc.serviceUC.EXPECT().
+		suite.serviceUC.EXPECT().
 			GetUserByLogin(gomock.Any(), login).
 			Return(user, nil)
 
@@ -395,17 +376,17 @@ func TestHandler_LoginUser(t *testing.T) {
 		require.Contains(t, w.Body.String(), "invalid credentials")
 	})
 
-	t.Run("Session creation failed", func(t *testing.T) {
+	suite.T().Run("Session creation failed", func(t *testing.T) {
 		t.Parallel()
 
 		reqBody := strings.NewReader(`{"login": "testuser", "password": "pass"}`)
 		req := httptest.NewRequest(http.MethodPost, "/login", reqBody)
 		w := httptest.NewRecorder()
 
-		tc.serviceUC.EXPECT().GetUserByLogin(gomock.Any(), "testuser").
+		suite.serviceUC.EXPECT().GetUserByLogin(gomock.Any(), "testuser").
 			Return(user, nil)
 
-		tc.serviceUC.EXPECT().CreateSession(gomock.Any(), gomock.Any(), userID.String()).
+		suite.serviceUC.EXPECT().CreateSession(gomock.Any(), gomock.Any(), userID.String()).
 			Return(errors.New("database error"))
 
 		handlerFunc(w, req)
@@ -413,4 +394,8 @@ func TestHandler_LoginUser(t *testing.T) {
 		require.Equal(t, http.StatusInternalServerError, w.Code)
 		require.Contains(t, w.Body.String(), "failed to create session")
 	})
+}
+
+func TestHandlerTestSuite(t *testing.T) {
+	suite.Run(t, new(TestSuite))
 }

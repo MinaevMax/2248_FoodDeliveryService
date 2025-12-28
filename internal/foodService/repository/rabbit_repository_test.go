@@ -1,3 +1,5 @@
+//go:build integration
+
 package repository
 
 import (
@@ -110,8 +112,6 @@ func TestServiceRepo_StartStatusChangeConsumer(t *testing.T) {
 	orderID := uuid.New()
 	testStatus := "processing"
 	testUpdatedAt := time.Now().UTC()
-
-	//sqlxDB.Exec(`UPDATE orders SET status = ? WHERE id = ?`, testStatus, orderID.String())
 
 	mock.
 		ExpectExec(`UPDATE orders SET status = ? WHERE id = ?`).
