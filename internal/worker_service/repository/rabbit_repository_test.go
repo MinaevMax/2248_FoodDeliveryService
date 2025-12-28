@@ -1,7 +1,6 @@
 package repository
 
 import (
-	"2248_FoodDeliveryService/internal/models"
 	"2248_FoodDeliveryService/internal/utils"
 	"encoding/json"
 	"fmt"
@@ -9,9 +8,7 @@ import (
 	"testing"
 	"time"
 
-	"github.com/DATA-DOG/go-sqlmock"
 	"github.com/google/uuid"
-	"github.com/jmoiron/sqlx"
 	"github.com/ory/dockertest/v3"
 	"github.com/ory/dockertest/v3/docker"
 	"github.com/streadway/amqp"
@@ -74,89 +71,61 @@ func TestMain(m *testing.M) {
 	m.Run()
 }
 
-func TestServiceRepo_PublishNewOrder(t *testing.T) {
+func TestServiceRepo_PublishOrderStatus(t *testing.T) {
 	if testing.Short() {
 		t.Skip("skipping integration test in short mode")
 	}
 	rabbit, logger := utils.SetupRabbit()
+	orderCh := make(chan string, 100)
 
-	serviceRepo := NewServiceRepo(nil, rabbit, logger)
+	serviceRepo := NewServiceRepo(rabbit, orderCh, logger)
 
-	t.Run("Success", func(t *testing.T) {
+	t.Run("PublishNewOrder - no error", func(t *testing.T) {
 		userID := uuid.New()
-		err := serviceRepo.PublishNewOrder(userID.String())
+		err := serviceRepo.PublishOrderStatus(userID.String(), "PACKING")
 		require.NoError(t, err)
 	})
 
-	rabbit.Channel.QueuePurge("new-orders", false)
+	rabbit.Channel.QueuePurge("order-status-change", false)
 	time.Sleep(1 * time.Second)
 }
 
-func TestServiceRepo_StartStatusChangeConsumer(t *testing.T) {
+func TestServiceRepo_StartNewOrdersConsumer(t *testing.T) {
 	if testing.Short() {
 		t.Skip("skipping integration test in short mode")
 	}
 	rabbit, logger := utils.SetupRabbit()
 
-	db, mock, err := sqlmock.New(sqlmock.QueryMatcherOption(sqlmock.QueryMatcherEqual))
-	require.NoError(t, err)
-	defer db.Close()
+	t.Run("successfully consumes messages", func(t *testing.T) {
+		orderCh := make(chan string, 100)
+		serviceRepo := NewServiceRepo(rabbit, orderCh, logger)
 
-	sqlxDB := sqlx.NewDb(db, "sqlmock")
-	defer sqlxDB.Close()
+		queueName := "new-orders"
 
-	serviceRepo := NewServiceRepo(sqlxDB, rabbit, logger)
+		go func() {
+			serviceRepo.StartNewOrdersConsumer(queueName)
+		}()
+		time.Sleep(100 * time.Millisecond)
 
-	orderID := uuid.New()
-	testStatus := "processing"
-	testUpdatedAt := time.Now().UTC()
-
-	//sqlxDB.Exec(`UPDATE orders SET status = ? WHERE id = ?`, testStatus, orderID.String())
-
-	mock.
-		ExpectExec(`UPDATE orders SET status = ? WHERE id = ?`).
-		WithArgs(sqlmock.AnyArg(), sqlmock.AnyArg()).
-		WillReturnResult(sqlmock.NewResult(0, 1)).
-		WillReturnError(nil)
-
-	t.Run("StartStatusChangeConsumer - no error", func(t *testing.T) {
-		queueName := "order-status-change"
-
-		testMessage := models.ChangeOrderStatusData{
-			OrderID:   orderID.String(),
-			NewStatus: testStatus,
-			UpdatedAt: testUpdatedAt,
-		}
-
-		messageBody, err := json.Marshal(testMessage)
+		orderID := uuid.New()
+		body, err := json.Marshal(orderID.String())
 		require.NoError(t, err)
 
-		done := make(chan bool, 100)
-		go func() {
-			serviceRepo.StartStatusChangeConsumer(queueName)
-			time.Sleep(1 * time.Second)
-			done <- true
-		}()
-
 		err = rabbit.Channel.Publish(
-			"main_exchange",
-			queueName,
-			false,
-			false,
+			"main_exchange", "new-orders", false, false,
 			amqp.Publishing{
 				ContentType:  "application/json",
-				Body:         messageBody,
+				Body:         body,
 				DeliveryMode: amqp.Persistent,
-			},
-		)
+			})
+		require.NoError(t, err)
+
 		select {
-		case <-done:
-			require.NoError(t, mock.ExpectationsWereMet())
-			t.Logf("Successfully consumed message: %s", testMessage)
+		case consumedOrder := <-orderCh: // Assuming your consumer puts messages here
+			require.Equal(t, orderID.String(), consumedOrder)
+			t.Logf("Successfully consumed message: %s", consumedOrder)
 		case <-time.After(3 * time.Second):
 			t.Fatal("Message was not consumed within timeout")
 		}
-		_, err = rabbit.Channel.QueuePurge(queueName, true)
-		require.NoError(t, err)
 	})
 }

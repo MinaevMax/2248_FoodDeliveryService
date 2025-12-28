@@ -3,6 +3,7 @@ package service
 import (
 	"2248_FoodDeliveryService/internal/worker_service/mock"
 	"context"
+	"errors"
 	"log/slog"
 	"os"
 	"sync"
@@ -12,22 +13,6 @@ import (
 	"github.com/stretchr/testify/require"
 	"go.uber.org/mock/gomock"
 )
-
-func TestWorkerPool_NewWorkerPool(t *testing.T) {
-	repo := mock.NewMockRepository(gomock.NewController(t))
-	logger := slog.New(slog.NewJSONHandler(os.Stdout, nil))
-	t.Run("TestWorkerPool_NewWorkerPool - success", func(t *testing.T) {
-		wp := NewWorkerPool(5, 10, repo, logger)
-
-		require.Equal(t, 5, wp.maxWorkers)
-		require.Equal(t, 10, wp.maxQueueLen)
-		require.Equal(t, 0, int(wp.processed.Load()))
-		require.Equal(t, 0, int(wp.enqueued.Load()))
-		require.NotNil(t, wp.sem)
-		require.NotNil(t, wp.orderQueue)
-		require.NotNil(t, wp.rabbitMutex)
-	})
-}
 
 func TestWorkerPool_ProcessOrder(t *testing.T) {
 	repo := mock.NewMockRepository(gomock.NewController(t))
@@ -49,7 +34,14 @@ func TestWorkerPool_ProcessOrder(t *testing.T) {
 	})
 
 	t.Run("TestWorkerPool_ProcessOrder - error when queue is full", func(t *testing.T) {
-		t.Skip()
+		wp := NewWorkerPool(2, 0, repo, logger)
+		defer wp.Shutdown()
+		repo.EXPECT().
+			PublishOrderStatus("order-123", "COMPLETED").
+			Return(errors.New("queue is full")).
+			AnyTimes()
+		err := wp.ProcessOrder(context.Background(), "order-123")
+		require.Error(t, err)
 	})
 
 	t.Run("TestWorkerPool_ProcessOrder - handle context cancellation", func(t *testing.T) {
@@ -86,10 +78,6 @@ func TestWorkerPool_worker(t *testing.T) {
 		time.Sleep(5 * time.Second)
 
 		require.Equal(t, int64(1), wp.processed.Load())
-	})
-
-	t.Run("TestWorkerPool_ProcessOrder - order cancelled", func(t *testing.T) {
-		t.Skip()
 	})
 
 	t.Run("TestWorkerPool_ProcessOrder - handle context timeout", func(t *testing.T) {
