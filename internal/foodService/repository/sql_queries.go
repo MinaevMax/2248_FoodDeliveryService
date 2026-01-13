@@ -3,10 +3,10 @@ package repository
 const (
 	// Order queries
 	createOrderQuery = `INSERT INTO orders (user_id) VALUES ($1) RETURNING id`
-	
+
 	getOrdersQuery = `SELECT id, status, updated_at FROM orders WHERE user_id = $1 ORDER BY created_at DESC`
 
-	getActiveOrdersQuery = `SELECT id, status, updated_at FROM orders WHERE user_id = $1 AND (status = UNDEFINED OR status = PACKING OR status = ARRIVING) ORDER BY created_at DESC`
+	getActiveOrdersQuery = `SELECT id, status, updated_at FROM orders WHERE user_id = $1 AND status in ('UNDEFINED', 'PACKING', 'ARRIVING') ORDER BY created_at DESC`
 
 	changeOrderStatusQuery = `UPDATE orders SET status = :status WHERE id = :order_id`
 
