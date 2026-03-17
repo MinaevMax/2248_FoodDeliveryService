@@ -11,18 +11,21 @@ import (
 )
 
 func (r *serviceRepo) PublishNewOrder(orderId string) error {
+	// Проверяем сущестование или создаем обменник
 	err := r.rabbit.Channel.ExchangeDeclare(r.rabbit.PubConf.Name, r.rabbit.PubConf.Kind, r.rabbit.PubConf.Durable, r.rabbit.PubConf.AutoDelete, r.rabbit.PubConf.Internal, r.rabbit.PubConf.NoWait, r.rabbit.PubConf.Args)
 	if err != nil {
 		r.log.Error("failed to declare an exchange", slog.Any("errors", err))
 		return err
 	}
-
+	
+	// Формируем сообщение в виде json с orderID
 	body, err := json.Marshal(orderId)
 	if err != nil {
 		r.log.Error("failed to marshall error message", slog.Any("error", err))
 		return err
 	}
 
+	// Отправляем сообщение в нужную очередь
 	err = r.rabbit.Channel.Publish(
 		r.rabbit.PubConf.Name, r.rabbit.PubConf.QueueName, false, false,
 		amqp.Publishing{

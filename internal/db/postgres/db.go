@@ -16,6 +16,8 @@ const (
 
 
 func NewPostgresDB(cfg *config.PostgresqlConfig) (*sqlx.DB, error) {
+	//Создаем строку для подключения к базе.
+	//Значения для нее берутся из переменных, которые мы задали в docker-compose.yml
 	dsn := fmt.Sprintf("postgres://%s:%s@%s:%d/%s?sslmode=disable",
 		cfg.User,
 		cfg.Password,
@@ -24,6 +26,7 @@ func NewPostgresDB(cfg *config.PostgresqlConfig) (*sqlx.DB, error) {
 		cfg.Dbname,
 	)
 
+	//Подключаемся к базе, и проверяем, что подключение успешно
 	db, err := sqlx.Connect(driverName, dsn)
 	if err != nil {
 		return nil, err

@@ -143,17 +143,19 @@ func (s *serviceRepo) GetUserByID(ctx context.Context, userID string) (*models.U
 }
 
 func (r *serviceRepo) RegisterUser(ctx context.Context, login, password string) (*models.UserData, error) {
+	// генерируем пароль, чтобы в базе он был зашифрован
 	hashedPassword, err := bcrypt.GenerateFromPassword([]byte(password), bcrypt.DefaultCost)
 	if err != nil {
 		return nil, fmt.Errorf("failed to hash password: %w", err)
 	}
 
 	var userID string
-	err = r.postgresql.GetContext(ctx, &userID, registerUserQuery, login, hashedPassword)
+	// выполняем запрос к базе данных (registerUserQuery - SQL запрос, в который вставляются login, hashedPassword) и возвращается userID	err = r.postgresql.GetContext(ctx, &userID, registerUserQuery, login, hashedPassword)
 	if err != nil {
 		return nil, fmt.Errorf("failed to insert user: %w", err)
 	}
 
+	// создаем и возвращаем структуру, с пользователем
 	user := &models.UserData{
 		ID:        userID,
 		Login:     login,

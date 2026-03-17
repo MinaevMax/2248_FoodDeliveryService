@@ -69,6 +69,7 @@ func (h *handler) AddNewOrder() http.HandlerFunc {
 
 		var validationError validator.ValidationErrors
 		validationErr := validate.Struct(newOrderParams)
+		// Валидируем тело запроса и обрабатываем ошибку
 		if validationErr != nil {
 			errString := ""
 			if errors.As(validationErr, &validationError) {
@@ -81,6 +82,7 @@ func (h *handler) AddNewOrder() http.HandlerFunc {
 			return
 		}
 
+		// Создаем заказы равное количеству amount
 		orderIDs := []uuid.UUID{}
 		for range newOrderParams.Amount {
 			newOrderCtx, newOrderCancel := context.WithTimeout(context.Background(), CtxTimeout)
@@ -93,6 +95,7 @@ func (h *handler) AddNewOrder() http.HandlerFunc {
 			orderIDs = append(orderIDs, orderID)
 		}
 
+		//  Возвращаем ответ
 		utils.WriteJSONResponse(w, http.StatusOK, orderIDs, h.log)
 	}
 }
@@ -102,6 +105,7 @@ func (h *handler) GetOrdersList() http.HandlerFunc {
 	return func(w http.ResponseWriter, r *http.Request) {
 		h.log.Info("Received get orders list request")
 
+		//  Проверяем один из параметров запроса
 		active := r.URL.Query().Get("active")
 		isActive := false
 		if active != "" {
@@ -116,6 +120,7 @@ func (h *handler) GetOrdersList() http.HandlerFunc {
 			}
 		}
 
+		//  Проверяем, по userID, что пользователь аутентифицирован
 		userID, ok := r.Context().Value("userID").(string)
 		if !ok || userID == "" {
 			h.log.Error("User not authenticated, missing userID")
@@ -123,6 +128,7 @@ func (h *handler) GetOrdersList() http.HandlerFunc {
 			return
 		}
 
+		//  Возвращаем список заказов
 		getOrdersCtx, getOrdersCancel := context.WithTimeout(context.Background(), CtxTimeout)
 		defer getOrdersCancel()
 		orders, err := h.uc.GetOrders(getOrdersCtx, userID, isActive)
@@ -131,6 +137,7 @@ func (h *handler) GetOrdersList() http.HandlerFunc {
 			return
 		}
 
+		//  Возвращаем ответ
 		utils.WriteJSONResponse(w, http.StatusOK, map[string]interface{}{"count": len(orders), "items": orders}, h.log)
 	}
 }
@@ -143,11 +150,13 @@ func (h *handler) RegisterUser() http.HandlerFunc {
 		ctx, cancel := context.WithTimeout(r.Context(), CtxTimeout)
 		defer cancel()
 
+		// структура для тела запроса
 		var req struct {
 			Login    string `json:"login" validate:"required,min=3"`
 			Password string `json:"password" validate:"required,min=8"`
 		}
 
+		// читаем тело запроса
 		body, err := io.ReadAll(r.Body)
 		if err != nil {
 			h.log.Error("failed to read request body", slog.Any("error", err))
@@ -155,6 +164,7 @@ func (h *handler) RegisterUser() http.HandlerFunc {
 			return
 		}
 
+		// проверяем тело запроса на соответствие json-формату
 		err = json.Unmarshal(body, &req)
 		if err != nil {
 			h.log.Error("failed to unmarshal request", slog.Any("error", err))
@@ -162,12 +172,14 @@ func (h *handler) RegisterUser() http.HandlerFunc {
 			return
 		}
 
+		// валидируем тело запроса - оно должно соответствовать структуре 
 		if err := validate.Struct(req); err != nil {
 			h.log.Error("validation error", slog.Any("error", err))
 			http.Error(w, "validation failed", http.StatusBadRequest)
 			return
 		}
 
+		// запрос валидный, регистрируем пользователя
 		user, err := h.uc.RegisterUser(ctx, req.Login, req.Password)
 		if err != nil {
 			h.log.Error("failed to register user", slog.Any("error", err))
@@ -175,6 +187,7 @@ func (h *handler) RegisterUser() http.HandlerFunc {
 			return
 		}
 
+		// возвращаем 201 - status created
 		w.Header().Set("Content-Type", "application/json")
 		w.WriteHeader(http.StatusCreated)
 		json.NewEncoder(w).Encode(user)
